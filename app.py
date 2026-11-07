@@ -39,6 +39,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def add_no_cache_header(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -46,6 +56,19 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 class QuizSubmission(BaseModel):
     scores: list[int]
+
+
+class BenchmarkAttributionRequest(BaseModel):
+    symbols: list[str] = ["FPT", "MWG", "VCB", "HPG", "VNM"]
+    w_tangency: list[float]
+    tangency_return: float
+    tangency_volatility: float
+    tangency_sharpe: float
+    rf: float = 0.045
+    benchmark_symbol: str = "VNINDEX"
+    benchmark_range: str = "1y"
+    use_adjusted_close: bool = True
+    input_mode: str = "hayinsights"
 
 
 class OptimizeRequest(BaseModel):
@@ -309,6 +332,49 @@ def api_evaluate_quiz(sub: QuizSubmission):
 def api_optimize(req: OptimizeRequest):
     try:
         return _build_full_analysis(req)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/benchmark-attribution")
+def api_benchmark_attribution(req: BenchmarkAttributionRequest):
+    """
+    Fast Independent Attribution endpoint for Bloomberg-tier interactive Benchmark Horizon exploration.
+    Calculates Beta, Alpha, Tracking Error, Information Ratio, Correlation, and Cumulative Wealth Index
+    specifically for the requested Horizon without running heavy full-app MVO optimization.
+    """
+    try:
+        bm_sym = (req.benchmark_symbol or "VNINDEX").strip().upper()
+        bm_rng = (req.benchmark_range or "1y").strip().lower()
+        w_tan = np.asarray(req.w_tangency, dtype=float)
+        tan_stats = {
+            "expected_return": float(req.tangency_return),
+            "volatility": float(req.tangency_volatility),
+            "sharpe_ratio": float(req.tangency_sharpe),
+        }
+
+        cached_up = data_loader.get_last_uploaded_dataset()
+        clean_syms = [s.strip().upper() for s in req.symbols]
+
+        if req.input_mode == "manual" and cached_up and cached_up.get("symbols") == clean_syms and cached_up.get("df_prices") is not None:
+            df_rets = cached_up["df_prices"].pct_change().dropna(how="any")
+        else:
+            live_bm = hayinsights_client.fetch_multi_equity_dataset(
+                symbols=clean_syms,
+                range_str=bm_rng,
+                use_adjusted=req.use_adjusted_close,
+            )
+            df_rets = live_bm["df_prices"].pct_change().dropna(how="any")
+
+        res = benchmark_engine.compute_benchmark_comparison(
+            df_asset_returns=df_rets,
+            w_tangency=w_tan,
+            tangency_stats=tan_stats,
+            rf=req.rf,
+            benchmark_symbol=bm_sym,
+            range_str=bm_rng,
+        )
+        return res
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

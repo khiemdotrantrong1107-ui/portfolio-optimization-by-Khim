@@ -218,6 +218,37 @@ function bindUIEvents() {
   document.getElementById('inp-excel-upload').addEventListener('change', handleExcelUpload);
   document.getElementById('btn-run-mvo').addEventListener('click', runMVOOptimization);
   document.getElementById('btn-export-excel').addEventListener('click', exportInstitutionalExcel);
+
+  const btnPrices = document.getElementById('btn-export-prices');
+  if (btnPrices) {
+    btnPrices.addEventListener('click', (e) => {
+      e.preventDefault();
+      exportCurrentPriceData();
+    });
+  }
+
+  const btnMatrix = document.getElementById('btn-export-matrix');
+  if (btnMatrix) {
+    btnMatrix.addEventListener('click', (e) => {
+      e.preventDefault();
+      exportCurrentMatrixData();
+    });
+  }
+
+  // Keyboard shortcut: Escape to close Fullscreen Modal or Quiz
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const fsModal = document.getElementById('modal-chart-fullscreen');
+      if (fsModal && !fsModal.classList.contains('hidden')) {
+        closeChartFullscreen();
+        return;
+      }
+      const qModal = document.getElementById('quiz-box-panel');
+      if (qModal && !qModal.classList.contains('hidden')) {
+        toggleQuizModal();
+      }
+    }
+  });
 }
 
 async function loadPresets() {
@@ -670,22 +701,130 @@ async function submitRiskQuiz() {
   }
 }
 
-// --- Benchmark Horizon & Index Synchronization ---
-function onBenchmarkConfigChange(newSym, newHorizon) {
+// --- Bloomberg-Style Interactive Benchmark Attribution Controls ---
+let currentBenchmarkSymbol = 'VNINDEX';
+let currentBenchmarkHorizon = '1y';
+
+function updateBenchmarkPillsUI() {
+  const horizons = ['6m', '1y', '3y', '5y', 'ytd', 'max'];
+  horizons.forEach(hz => {
+    const pill = document.getElementById(`bm-pill-hz-${hz}`);
+    if (pill) {
+      if (hz === currentBenchmarkHorizon) {
+        pill.classList.add('font-semibold');
+        pill.style.backgroundColor = 'var(--accent)';
+        pill.style.color = '#ffffff';
+      } else {
+        pill.classList.remove('font-semibold');
+        pill.style.backgroundColor = 'transparent';
+        pill.style.color = 'var(--text-secondary)';
+      }
+    }
+  });
+
+  const pVnindex = document.getElementById('bm-pill-idx-vnindex');
+  const pVn30 = document.getElementById('bm-pill-idx-vn30');
+  if (pVnindex && pVn30) {
+    if (currentBenchmarkSymbol === 'VNINDEX') {
+      pVnindex.classList.add('active');
+      pVn30.classList.remove('active');
+    } else {
+      pVn30.classList.add('active');
+      pVnindex.classList.remove('active');
+    }
+  }
+
   const selBmLeft = document.getElementById('sel-benchmark');
   const selBmTab = document.getElementById('sel-benchmark-tab');
   const selHorLeft = document.getElementById('sel-benchmark-horizon');
   const selHorTab = document.getElementById('sel-benchmark-horizon-tab');
+  if (selBmLeft) selBmLeft.value = currentBenchmarkSymbol;
+  if (selBmTab) selBmTab.value = currentBenchmarkSymbol;
+  if (selHorLeft) selHorLeft.value = currentBenchmarkHorizon;
+  if (selHorTab) selHorTab.value = currentBenchmarkHorizon;
+}
 
-  if (newSym) {
-    if (selBmLeft) selBmLeft.value = newSym;
-    if (selBmTab) selBmTab.value = newSym;
+async function setBenchmarkHorizon(horizon) {
+  if (!horizon) return;
+  currentBenchmarkHorizon = horizon.toLowerCase();
+  updateBenchmarkPillsUI();
+
+  if (lastAnalysisData && lastAnalysisData.tangency && lastAnalysisData.symbols) {
+    await runBenchmarkAttributionRecalc();
+  } else {
+    runMVOOptimization();
   }
-  if (newHorizon) {
-    if (selHorLeft) selHorLeft.value = newHorizon;
-    if (selHorTab) selHorTab.value = newHorizon;
+}
+
+async function setBenchmarkIndex(symbol) {
+  if (!symbol) return;
+  currentBenchmarkSymbol = symbol.toUpperCase();
+  updateBenchmarkPillsUI();
+
+  if (lastAnalysisData && lastAnalysisData.tangency && lastAnalysisData.symbols) {
+    await runBenchmarkAttributionRecalc();
+  } else {
+    runMVOOptimization();
   }
-  runMVOOptimization();
+}
+
+function onBenchmarkConfigChange(newSym, newHorizon) {
+  if (newSym) currentBenchmarkSymbol = newSym.toUpperCase();
+  if (newHorizon) currentBenchmarkHorizon = newHorizon.toLowerCase();
+  updateBenchmarkPillsUI();
+
+  if (lastAnalysisData && lastAnalysisData.tangency && lastAnalysisData.symbols) {
+    runBenchmarkAttributionRecalc();
+  } else {
+    runMVOOptimization();
+  }
+}
+
+async function runBenchmarkAttributionRecalc() {
+  const spinner = document.getElementById('bm-attribution-spinner');
+  if (spinner) spinner.classList.remove('hidden');
+
+  try {
+    const rf = (parseFloat(document.getElementById('inp-rf').value) || 4.5) / 100.0;
+    const useAdj = document.getElementById('chk-hayinsights-adj')?.checked ?? true;
+    const syms = lastAnalysisData.symbols || getHayInsightsSymbolList();
+    const tan = lastAnalysisData.tangency || {};
+
+    const reqBody = {
+      symbols: syms,
+      w_tangency: tan.weights || [],
+      tangency_return: tan.expected_return || 0.1,
+      tangency_volatility: tan.volatility || 0.15,
+      tangency_sharpe: tan.sharpe_ratio || 0.5,
+      rf: rf,
+      benchmark_symbol: currentBenchmarkSymbol,
+      benchmark_range: currentBenchmarkHorizon,
+      use_adjusted_close: useAdj,
+      input_mode: currentInputMode
+    };
+
+    const res = await fetch('/api/benchmark-attribution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reqBody)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Attribution calculation failed');
+    }
+
+    const bmData = await res.json();
+    lastAnalysisData.benchmark_comparison = bmData;
+    lastAnalysisData.benchmark_range = currentBenchmarkHorizon;
+    lastAnalysisData.benchmark_symbol = currentBenchmarkSymbol;
+
+    renderBenchmarkTab(lastAnalysisData);
+  } catch (err) {
+    console.error('Benchmark attribution recalculation error:', err);
+  } finally {
+    if (spinner) spinner.classList.add('hidden');
+  }
 }
 
 // --- MVO Request & Execution ---
@@ -1181,9 +1320,10 @@ function renderBenchmarkTab(data) {
   const badge = document.getElementById('lbl-benchmark-badge');
   if (!bm || !tbl) return;
 
-  const bmRangeTag = bm.benchmark_range || (data.benchmark_range || '1Y');
+  const bmRangeTag = (bm.benchmark_range || data.benchmark_range || currentBenchmarkHorizon || '1Y').toUpperCase();
+  const bmSym = (bm.benchmark_symbol || currentBenchmarkSymbol || 'VNINDEX').toUpperCase();
   if (badge) {
-    badge.textContent = `vs. ${bm.benchmark_symbol} (${bmRangeTag})`;
+    badge.textContent = `vs. ${bmSym} (${bmRangeTag})`;
   }
 
   const spreadSign = (v, isPct = true) => {
@@ -1193,8 +1333,54 @@ function renderBenchmarkTab(data) {
     return isPct ? `${prefix}${(num * 100).toFixed(2)}%` : `${prefix}${num.toFixed(3)}`;
   };
 
-  const alphaColor = bm.jensen_alpha >= 0 ? 'var(--success)' : 'var(--danger)';
-  const irColor = bm.information_ratio >= 0 ? 'var(--success)' : 'var(--danger)';
+  const alphaColor = (bm.active_return ?? bm.jensen_alpha ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)';
+  const irColor = (bm.information_ratio ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)';
+
+  // Update Bloomberg Terminal 5-Card Attribution Strip
+  const elAlpha = document.getElementById('bm-kpi-alpha');
+  const elBps = document.getElementById('bm-kpi-bps');
+  const elBeta = document.getElementById('bm-kpi-beta');
+  const elBetaTag = document.getElementById('bm-kpi-beta-tag');
+  const elIr = document.getElementById('bm-kpi-ir');
+  const elIrTag = document.getElementById('bm-kpi-ir-tag');
+  const elTe = document.getElementById('bm-kpi-te');
+  const elCorr = document.getElementById('bm-kpi-corr');
+  const elR2 = document.getElementById('bm-kpi-r2');
+  const elPeriodMeta = document.getElementById('lbl-bm-period-meta');
+
+  if (elAlpha) {
+    elAlpha.textContent = spreadSign(bm.active_return, true);
+    elAlpha.style.color = alphaColor;
+  }
+  if (elBps) {
+    const bpsVal = Math.round((bm.active_return || 0) * 10000);
+    elBps.textContent = `${bpsVal >= 0 ? '+' : ''}${bpsVal} bps`;
+  }
+  if (elBeta) elBeta.textContent = fmtNum(bm.beta, 3);
+  if (elBetaTag) {
+    elBetaTag.textContent = bm.beta > 1.05 ? 'High Beta' : (bm.beta < 0.95 ? 'Defensive' : 'Market Neutral');
+  }
+  if (elIr) {
+    elIr.textContent = fmtNum(bm.information_ratio, 2);
+    elIr.style.color = irColor;
+  }
+  if (elIrTag) {
+    const irV = bm.information_ratio ?? 0;
+    elIrTag.textContent = irV >= 1.0 ? 'Exceptional' : (irV >= 0.5 ? 'Good Skill' : (irV >= 0 ? 'Modest' : 'Sub-BM'));
+  }
+  if (elTe) elTe.textContent = fmtPct(bm.tracking_error);
+  if (elCorr) elCorr.textContent = fmtNum(bm.correlation, 3);
+  if (elR2) elR2.textContent = `R²: ${fmtPct(bm.r_squared, 1)}`;
+
+  if (elPeriodMeta && bm.cumulative_series && bm.cumulative_series.dates) {
+    const dList = bm.cumulative_series.dates;
+    if (dList.length > 0) {
+      elPeriodMeta.textContent = `${dList[0]} → ${dList[dList.length - 1]} (${dList.length} Sessions)`;
+    }
+  }
+
+  // Update Benchmark quick pills in tab
+  updateBenchmarkPillsUI();
 
   tbl.innerHTML = `
     <thead>
@@ -1606,3 +1792,355 @@ async function exportInstitutionalExcel() {
     btn.innerHTML = oldHtml;
   }
 }
+
+
+// --- Interactive HD Fullscreen Chart Inspection ---
+let activeFullscreenChartKey = null;
+
+function openChartFullscreen(chartKey) {
+  if (!lastAnalysisData) {
+    alert('Please run portfolio optimization first.');
+    return;
+  }
+
+  const modal = document.getElementById('modal-chart-fullscreen');
+  const titleEl = document.getElementById('modal-fullscreen-title');
+  const subtitleEl = document.getElementById('modal-fullscreen-subtitle');
+  const plotContainer = document.getElementById('chart-fullscreen-plot');
+  if (!modal || !plotContainer) return;
+
+  activeFullscreenChartKey = chartKey;
+  const t = getChartThemeTokens();
+  const d = lastAnalysisData;
+
+  modal.classList.remove('hidden');
+
+  let traces = [];
+  let layout = {};
+
+  if (chartKey === 'frontier') {
+    titleEl.textContent = 'Efficient Frontier & Capital Allocation Line (CAL) — Fullscreen Inspection';
+    subtitleEl.textContent = 'Mean-Variance Opportunity Set • GMV • Tangency Portfolio • Utility Indifference Curve • CAL';
+
+    const mc = d.monte_carlo || [];
+    const fr = d.frontier || [];
+    const ind = d.individual_assets || [];
+    const cal = d.cal || [];
+    const indiff = d.indifference_curve || [];
+    const gmv = d.gmv || {};
+    const tan = d.tangency || {};
+    const comp = d.complete_portfolio || {};
+    const bm = d.benchmark_comparison || null;
+
+    if (mc.length > 0) {
+      traces.push({
+        x: mc.map(p => p.volatility),
+        y: mc.map(p => p.expected_return),
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Feasible Set (Monte Carlo)',
+        marker: {
+          size: 4.5,
+          color: mc.map(p => p.sharpe_ratio),
+          colorscale: 'Viridis',
+          opacity: 0.45,
+          showscale: true,
+          colorbar: {
+            title: 'Sharpe Ratio',
+            titleside: 'right',
+            tickfont: { size: 11, color: t.fontColor },
+            titlefont: { size: 12, color: t.fontColor },
+            len: 0.75
+          }
+        },
+        hoverinfo: 'text',
+        hovertext: mc.map(p => `&sigma;: ${fmtPct(p.volatility)}<br>E(R): ${fmtPct(p.expected_return)}<br>SR: ${fmtNum(p.sharpe_ratio, 3)}`)
+      });
+    }
+
+    if (fr.length > 0) {
+      traces.push({
+        x: fr.map(p => p.volatility),
+        y: fr.map(p => p.expected_return),
+        mode: 'lines',
+        type: 'scatter',
+        name: 'Efficient Frontier',
+        line: { color: t.navyAccent, width: 3.5 }
+      });
+    }
+
+    if (cal.length > 0) {
+      traces.push({
+        x: cal.map(p => p.volatility),
+        y: cal.map(p => p.expected_return),
+        mode: 'lines',
+        type: 'scatter',
+        name: 'CAL (Capital Allocation Line)',
+        line: { color: t.amberColor, width: 2.5, dash: 'dash' }
+      });
+    }
+
+    if (indiff.length > 0) {
+      traces.push({
+        x: indiff.map(p => p.volatility),
+        y: indiff.map(p => p.expected_return),
+        mode: 'lines',
+        type: 'scatter',
+        name: `Indifference Curve (A=${d.risk_aversion_A})`,
+        line: { color: t.purpleColor, width: 2.2, dash: 'dot' }
+      });
+    }
+
+    if (ind.length > 0) {
+      traces.push({
+        x: ind.map(a => a.volatility),
+        y: ind.map(a => a.expected_return),
+        mode: 'markers+text',
+        type: 'scatter',
+        name: 'Individual Assets',
+        text: ind.map(a => a.symbol),
+        textposition: 'top center',
+        textfont: { family: 'monospace', size: 12, color: t.fontColor },
+        marker: { size: 9, color: t.slateColor, symbol: 'circle' }
+      });
+    }
+
+    if (gmv.volatility !== undefined) {
+      traces.push({
+        x: [gmv.volatility],
+        y: [gmv.expected_return],
+        mode: 'markers',
+        type: 'scatter',
+        name: 'GMV (Min Variance)',
+        marker: { size: 14, color: t.amberColor, symbol: 'diamond', line: { color: '#ffffff', width: 1.5 } }
+      });
+    }
+
+    if (tan.volatility !== undefined) {
+      traces.push({
+        x: [tan.volatility],
+        y: [tan.expected_return],
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Tangency (Max Sharpe)',
+        marker: { size: 15, color: t.emeraldColor, symbol: 'circle', line: { color: '#ffffff', width: 2 } }
+      });
+    }
+
+    if (comp.volatility !== undefined) {
+      traces.push({
+        x: [comp.volatility],
+        y: [comp.expected_return],
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Complete Portfolio (C)',
+        marker: { size: 14, color: t.purpleColor, symbol: 'square', line: { color: '#ffffff', width: 1.5 } }
+      });
+    }
+
+    if (bm && bm.benchmark_volatility !== undefined) {
+      traces.push({
+        x: [bm.benchmark_volatility],
+        y: [bm.benchmark_return],
+        mode: 'markers+text',
+        type: 'scatter',
+        name: `Benchmark (${bm.benchmark_symbol})`,
+        text: [`${bm.benchmark_symbol}`],
+        textposition: 'bottom right',
+        textfont: { size: 12, color: t.roseColor },
+        marker: { size: 14, color: t.roseColor, symbol: 'star', line: { color: '#ffffff', width: 1.5 } }
+      });
+    }
+
+    layout = {
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      margin: { l: 70, r: 40, t: 30, b: 60 },
+      font: { family: 'Inter, sans-serif', color: t.fontColor, size: 12 },
+      xaxis: {
+        title: { text: 'Annualized Volatility &sigma; (%)', font: { size: 13 } },
+        tickformat: '.1%',
+        gridcolor: t.gridColor,
+        zerolinecolor: t.zeroLineColor
+      },
+      yaxis: {
+        title: { text: 'Expected Return E(R) (%)', font: { size: 13 } },
+        tickformat: '.1%',
+        gridcolor: t.gridColor,
+        zerolinecolor: t.zeroLineColor
+      },
+      legend: {
+        orientation: 'h',
+        yanchor: 'bottom',
+        y: 1.02,
+        xanchor: 'left',
+        x: 0,
+        font: { size: 11 }
+      },
+      hovermode: 'closest'
+    };
+
+  } else if (chartKey === 'weights') {
+    titleEl.textContent = 'Optimal Portfolio Weights Allocation — Fullscreen Inspection';
+    subtitleEl.textContent = 'Comparison across GMV, Tangency (Max Sharpe), and Complete Portfolio (C)';
+
+    const syms = d.symbols || [];
+    const wGmv = (d.gmv && d.gmv.weights) || [];
+    const wTan = (d.tangency && d.tangency.weights) || [];
+    const wComp = (d.complete_portfolio && d.complete_portfolio.weights) || [];
+
+    traces = [
+      {
+        x: syms,
+        y: wGmv,
+        name: 'GMV (Min Risk)',
+        type: 'bar',
+        marker: { color: t.amberColor }
+      },
+      {
+        x: syms,
+        y: wTan,
+        name: 'Tangency (Max Sharpe)',
+        type: 'bar',
+        marker: { color: t.navyAccent }
+      },
+      {
+        x: syms,
+        y: wComp,
+        name: 'Complete Portfolio (C)',
+        type: 'bar',
+        marker: { color: t.emeraldColor }
+      }
+    ];
+
+    layout = {
+      barmode: 'group',
+      bargap: 0.25,
+      bargroupgap: 0.1,
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      margin: { l: 70, r: 40, t: 30, b: 60 },
+      font: { family: 'Inter, sans-serif', color: t.fontColor, size: 12 },
+      xaxis: { gridcolor: t.gridColor, tickfont: { size: 13, family: 'monospace' } },
+      yaxis: {
+        title: { text: 'Asset Weight w<sub>i</sub> (%)', font: { size: 13 } },
+        tickformat: '.0%',
+        gridcolor: t.gridColor,
+        zerolinecolor: t.zeroLineColor
+      },
+      legend: {
+        orientation: 'h',
+        yanchor: 'bottom',
+        y: 1.02,
+        xanchor: 'left',
+        x: 0,
+        font: { size: 12 }
+      }
+    };
+
+  } else if (chartKey === 'benchmark') {
+    const bm = d.benchmark_comparison || {};
+    const sym = (bm.benchmark_symbol || currentBenchmarkSymbol || 'VNINDEX').toUpperCase();
+    const rng = (bm.benchmark_range || currentBenchmarkHorizon || '1Y').toUpperCase();
+
+    titleEl.textContent = 'Cumulative Wealth Index (Normalized Base = 100) — Fullscreen Inspection';
+    subtitleEl.textContent = `Tangency Portfolio vs. ${sym} Benchmark (${rng})`;
+
+    const cum = bm.cumulative_series || {};
+    const dates = cum.dates || [];
+    const pSeries = cum.portfolio_base100 || [];
+    const bSeries = cum.benchmark_base100 || [];
+
+    if (dates.length > 0) {
+      traces.push({
+        x: dates,
+        y: pSeries,
+        mode: 'lines',
+        type: 'scatter',
+        name: 'Tangency Portfolio (Base 100)',
+        line: { color: t.navyAccent, width: 3 }
+      });
+      traces.push({
+        x: dates,
+        y: bSeries,
+        mode: 'lines',
+        type: 'scatter',
+        name: `${sym} Benchmark (Base 100)`,
+        line: { color: t.roseColor, width: 2.5, dash: 'dot' }
+      });
+    }
+
+    layout = {
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      margin: { l: 70, r: 40, t: 30, b: 60 },
+      font: { family: 'Inter, sans-serif', color: t.fontColor, size: 12 },
+      xaxis: {
+        title: { text: 'Trading Session Date', font: { size: 13 } },
+        gridcolor: t.gridColor
+      },
+      yaxis: {
+        title: { text: 'Indexed Wealth (Base = 100)', font: { size: 13 } },
+        gridcolor: t.gridColor,
+        zerolinecolor: t.zeroLineColor
+      },
+      legend: {
+        orientation: 'h',
+        yanchor: 'bottom',
+        y: 1.02,
+        xanchor: 'left',
+        x: 0,
+        font: { size: 12 }
+      },
+      hovermode: 'x unified'
+    };
+  }
+
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    modeBarButtonsToRemove: ['lasso2d'],
+    displaylogo: false
+  };
+
+  Plotly.newPlot('chart-fullscreen-plot', traces, layout, config).then(() => {
+    Plotly.Plots.resize('chart-fullscreen-plot');
+  });
+}
+
+function closeChartFullscreen() {
+  const modal = document.getElementById('modal-chart-fullscreen');
+  if (modal) modal.classList.add('hidden');
+  const plot = document.getElementById('chart-fullscreen-plot');
+  if (plot && window.Plotly) Plotly.purge(plot);
+  activeFullscreenChartKey = null;
+
+  setTimeout(() => {
+    const c1 = document.getElementById('chart-frontier');
+    const c2 = document.getElementById('chart-weights');
+    const c3 = document.getElementById('chart-benchmark-cum');
+    if (c1 && window.Plotly) Plotly.Plots.resize(c1);
+    if (c2 && window.Plotly) Plotly.Plots.resize(c2);
+    if (c3 && window.Plotly) Plotly.Plots.resize(c3);
+  }, 50);
+}
+
+function resetFullscreenChartPlot() {
+  const plot = document.getElementById('chart-fullscreen-plot');
+  if (plot && window.Plotly) {
+    Plotly.relayout(plot, {
+      'xaxis.autorange': true,
+      'yaxis.autorange': true
+    });
+  }
+}
+
+// Global window exposure for HTML onclick handlers
+window.exportCurrentPriceData = exportCurrentPriceData;
+window.exportCurrentMatrixData = exportCurrentMatrixData;
+window.exportInstitutionalExcel = exportInstitutionalExcel;
+window.openChartFullscreen = openChartFullscreen;
+window.closeChartFullscreen = closeChartFullscreen;
+window.resetFullscreenChartPlot = resetFullscreenChartPlot;
+window.setBenchmarkHorizon = setBenchmarkHorizon;
+window.setBenchmarkIndex = setBenchmarkIndex;

@@ -26,8 +26,10 @@ import numpy as np
 from openpyxl import load_workbook
 
 from app import (
+    BenchmarkAttributionRequest,
     OptimizeRequest,
     QuizSubmission,
+    api_benchmark_attribution,
     api_evaluate_quiz,
     api_export_excel,
     api_export_matrix,
@@ -36,6 +38,7 @@ from app import (
     api_optimize,
     api_quote_ticker,
     api_search_tickers,
+    app,
 )
 from engine import data_loader, hayinsights_client, risk_profiler, template_generator, textbook_math
 
@@ -334,8 +337,66 @@ def test_live_price_and_matrix_exports_and_benchmark_horizons():
         assert len(res_hz["benchmark_comparison"]["cumulative_series"]["dates"]) >= 10
 
 
+def test_bloomberg_benchmark_attribution_and_fullscreen_ux():
+    """Verify dedicated Benchmark Attribution endpoint, Bloomberg Terminal quick pills, and Fullscreen modal."""
+    # 1. Test dedicated Benchmark Attribution endpoint
+    bm_req = BenchmarkAttributionRequest(
+        symbols=["FPT", "MWG", "VCB", "HPG", "VNM"],
+        w_tangency=[0.25, 0.15, 0.20, 0.20, 0.20],
+        tangency_return=0.185,
+        tangency_volatility=0.21,
+        tangency_sharpe=0.667,
+        rf=0.045,
+        benchmark_symbol="VN30",
+        benchmark_range="6m",
+        use_adjusted_close=True,
+    )
+    res_bm = api_benchmark_attribution(bm_req)
+    assert res_bm["benchmark_symbol"] == "VN30"
+    assert res_bm["benchmark_range"] == "6M"
+    assert "beta" in res_bm and res_bm["beta"] is not None
+    assert "active_return" in res_bm
+    assert "tracking_error" in res_bm
+    assert "information_ratio" in res_bm
+    assert "correlation" in res_bm
+    assert "r_squared" in res_bm
+    assert len(res_bm["cumulative_series"]["dates"]) > 0
+    assert len(res_bm["cumulative_series"]["portfolio_base100"]) == len(res_bm["cumulative_series"]["dates"])
+    assert len(res_bm["cumulative_series"]["benchmark_base100"]) == len(res_bm["cumulative_series"]["dates"])
+    assert 50.0 < res_bm["cumulative_series"]["portfolio_base100"][0] < 150.0
+    assert 50.0 < res_bm["cumulative_series"]["benchmark_base100"][0] < 150.0
+
+    # 2. Test Fullscreen Modal & Bloomberg Terminal DOM Elements in index.html
+    html_path = PROJECT_ROOT / "static" / "index.html"
+    html_text = html_path.read_text(encoding="utf-8")
+    assert 'id="modal-chart-fullscreen"' in html_text, "Missing modal-chart-fullscreen in index.html"
+    assert 'id="chart-fullscreen-plot"' in html_text, "Missing chart-fullscreen-plot in index.html"
+    assert "openChartFullscreen('frontier')" in html_text, "Missing openChartFullscreen for frontier"
+    assert "openChartFullscreen('weights')" in html_text, "Missing openChartFullscreen for weights"
+    assert "openChartFullscreen('benchmark')" in html_text, "Missing openChartFullscreen for benchmark"
+
+    # Bloomberg Quick Pills in tab-panel-benchmark
+    for hz in ("6m", "1y", "3y", "5y", "ytd", "max"):
+        assert f'id="bm-pill-hz-{hz}"' in html_text, f"Missing bm-pill-hz-{hz} in index.html"
+    assert 'id="bm-pill-idx-vnindex"' in html_text
+    assert 'id="bm-pill-idx-vn30"' in html_text
+
+    # Terminal 5-KPI Strip
+    for kpi_id in ("bm-kpi-alpha", "bm-kpi-beta", "bm-kpi-ir", "bm-kpi-te", "bm-kpi-corr"):
+        assert f'id="{kpi_id}"' in html_text, f"Missing {kpi_id} in index.html"
+
+    # Cache busting script tag
+    assert 'textbook_mvo.js?v=2.4.2' in html_text, "Missing cache-busting v=2.4.2 script tag"
+
+    # 3. Test textbook_mvo.js functions and window exports
+    js_path = PROJECT_ROOT / "static" / "textbook_mvo.js"
+    js_text = js_path.read_text(encoding="utf-8")
+    for fn in ("openChartFullscreen", "closeChartFullscreen", "resetFullscreenChartPlot", "setBenchmarkHorizon", "setBenchmarkIndex", "exportCurrentPriceData", "exportCurrentMatrixData"):
+        assert f"window.{fn} = {fn}" in js_text, f"Missing window export for {fn}"
+
+
 if __name__ == "__main__":
-    print("Running Portfolio Optimization by Khim Verification Suite (10 Suites)...")
+    print("Running Portfolio Optimization by Khim Verification Suite (11 Suites)...")
     test_merton_closed_form_identities()
     print("  [PASS] 1. Merton (1972) Closed-Form Matrix Identities (A, B, C, D, Sigma^-1)")
     test_long_only_qp_constraints()
@@ -356,4 +417,6 @@ if __name__ == "__main__":
     print("  [PASS] 9. Benchmark Comparison (VN-Index / VN30) & Tail-Risk Stress Testing (VaR/CVaR)")
     test_live_price_and_matrix_exports_and_benchmark_horizons()
     print("  [PASS] 10. Active Price (with Volume) & Matrix Exports + Benchmark Horizons + Roundtrip")
-    print("ALL 10 VERIFICATION SUITES PASSED SUCCESSFULLY!")
+    test_bloomberg_benchmark_attribution_and_fullscreen_ux()
+    print("  [PASS] 11. Bloomberg Terminal Benchmark UX, Fullscreen HD Modal & Cache-Busting")
+    print("ALL 11 VERIFICATION SUITES PASSED SUCCESSFULLY!")
