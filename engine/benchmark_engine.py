@@ -150,14 +150,14 @@ def compute_benchmark_comparison(
 
         common_idx = df_port_ret.index.intersection(r_bm.index)
         if len(common_idx) >= 15:
-            p_daily = (df_port_ret.loc[common_idx] @ w_tangency).to_numpy(dtype=float)
-            m_daily = r_bm.loc[common_idx].to_numpy(dtype=float)
+            p_daily = (df_port_ret.loc[common_idx] @ w_tangency).to_numpy(dtype=float, copy=True)
+            m_daily = r_bm.loc[common_idx].to_numpy(dtype=float, copy=True)
             dates_str = [d.strftime("%Y-%m-%d") for d in common_idx]
         else:
-            p_daily = (df_port_ret @ w_tangency).to_numpy(dtype=float)
+            p_daily = (df_port_ret @ w_tangency).to_numpy(dtype=float, copy=True)
             m_len = min(len(p_daily), len(r_bm))
             p_daily = p_daily[-m_len:]
-            m_daily = r_bm.to_numpy(dtype=float)[-m_len:]
+            m_daily = r_bm.to_numpy(dtype=float, copy=True)[-m_len:]
             dates_str = [d.strftime("%Y-%m-%d") for d in df_port_ret.index[-m_len:]]
 
         bm_ret = float(np.mean(m_daily) * TRADING_DAYS)
@@ -242,7 +242,7 @@ def compute_stress_testing_and_var(
     daily_sigma = comp_vol_ann / math.sqrt(TRADING_DAYS)
 
     if df_asset_returns is not None and len(df_asset_returns) >= 20:
-        r_risky_daily = (df_asset_returns @ w_tangency).to_numpy(dtype=float)
+        r_risky_daily = (df_asset_returns @ w_tangency).to_numpy(dtype=float, copy=True)
         r_comp_daily = y_risky * r_risky_daily + w_cash * (rf / TRADING_DAYS)
 
         # Historical VaR (positive number representing loss magnitude)

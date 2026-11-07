@@ -130,8 +130,8 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
         symbols = [str(x).strip().upper() for x in df_sub[sym_col].tolist()]
         n = len(symbols)
 
-        er_raw = df_sub[er_col].astype(float).to_numpy()
-        std_raw = df_sub[std_col].astype(float).to_numpy()
+        er_raw = df_sub[er_col].astype(float).to_numpy(dtype=float, copy=True)
+        std_raw = df_sub[std_col].astype(float).to_numpy(dtype=float, copy=True)
 
         # If user entered percentages like 18.5 instead of 0.185, convert automatically
         if np.max(np.abs(er_raw)) > 1.5 or np.max(std_raw) > 1.5:
@@ -143,7 +143,7 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
         col_map = {str(c).strip().upper(): c for c in df.columns}
         if all(s in col_map for s in symbols):
             corr_df = df_sub[[col_map[s] for s in symbols]].astype(float)
-            corr_mat = corr_df.to_numpy()
+            corr_mat = corr_df.to_numpy(dtype=float, copy=True)
 
         moments = textbook_math.build_moments_from_manual(
             symbols=symbols,

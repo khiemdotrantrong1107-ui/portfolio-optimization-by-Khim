@@ -30,13 +30,13 @@ def compute_moments_from_prices(
     rets = df_clean.pct_change().dropna(how="any")
     symbols = list(df_clean.columns)
 
-    mu_daily = rets.mean().to_numpy(dtype=float)
-    cov_daily = rets.cov(ddof=1).to_numpy(dtype=float)
+    mu_daily = rets.mean().to_numpy(dtype=float, copy=True)
+    cov_daily = rets.cov(ddof=1).to_numpy(dtype=float, copy=True)
 
     mu_ann = mu_daily * float(trading_days)
     cov_ann = cov_daily * float(trading_days)
     std_ann = np.sqrt(np.maximum(np.diag(cov_ann), 1e-12))
-    corr_mat = rets.corr().to_numpy(dtype=float)
+    corr_mat = rets.corr().to_numpy(dtype=float, copy=True)
     np.fill_diagonal(corr_mat, 1.0)
 
     latest_prices = {s: float(df_clean[s].iloc[-1]) for s in symbols}
