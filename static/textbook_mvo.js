@@ -1810,291 +1810,44 @@ function openChartFullscreen(chartKey) {
   if (!modal || !plotContainer) return;
 
   activeFullscreenChartKey = chartKey;
-  const t = getChartThemeTokens();
-  const d = lastAnalysisData;
-
-  modal.classList.remove('hidden');
-
-  let traces = [];
-  let layout = {};
+  let sourceId = 'chart-frontier';
 
   if (chartKey === 'frontier') {
+    sourceId = 'chart-frontier';
     titleEl.textContent = 'Efficient Frontier & Capital Allocation Line (CAL) — Fullscreen Inspection';
     subtitleEl.textContent = 'Mean-Variance Opportunity Set • GMV • Tangency Portfolio • Utility Indifference Curve • CAL';
-
-    const mc = d.monte_carlo || [];
-    const fr = d.frontier || [];
-    const ind = d.individual_assets || [];
-    const cal = d.cal || [];
-    const indiff = d.indifference_curve || [];
-    const gmv = d.gmv || {};
-    const tan = d.tangency || {};
-    const comp = d.complete_portfolio || {};
-    const bm = d.benchmark_comparison || null;
-
-    if (mc.length > 0) {
-      traces.push({
-        x: mc.map(p => p.volatility),
-        y: mc.map(p => p.expected_return),
-        mode: 'markers',
-        type: 'scatter',
-        name: 'Feasible Set (Monte Carlo)',
-        marker: {
-          size: 4.5,
-          color: mc.map(p => p.sharpe_ratio),
-          colorscale: 'Viridis',
-          opacity: 0.45,
-          showscale: true,
-          colorbar: {
-            title: 'Sharpe Ratio',
-            titleside: 'right',
-            tickfont: { size: 11, color: t.fontColor },
-            titlefont: { size: 12, color: t.fontColor },
-            len: 0.75
-          }
-        },
-        hoverinfo: 'text',
-        hovertext: mc.map(p => `&sigma;: ${fmtPct(p.volatility)}<br>E(R): ${fmtPct(p.expected_return)}<br>SR: ${fmtNum(p.sharpe_ratio, 3)}`)
-      });
-    }
-
-    if (fr.length > 0) {
-      traces.push({
-        x: fr.map(p => p.volatility),
-        y: fr.map(p => p.expected_return),
-        mode: 'lines',
-        type: 'scatter',
-        name: 'Efficient Frontier',
-        line: { color: t.navyAccent, width: 3.5 }
-      });
-    }
-
-    if (cal.length > 0) {
-      traces.push({
-        x: cal.map(p => p.volatility),
-        y: cal.map(p => p.expected_return),
-        mode: 'lines',
-        type: 'scatter',
-        name: 'CAL (Capital Allocation Line)',
-        line: { color: t.amberColor, width: 2.5, dash: 'dash' }
-      });
-    }
-
-    if (indiff.length > 0) {
-      traces.push({
-        x: indiff.map(p => p.volatility),
-        y: indiff.map(p => p.expected_return),
-        mode: 'lines',
-        type: 'scatter',
-        name: `Indifference Curve (A=${d.risk_aversion_A})`,
-        line: { color: t.purpleColor, width: 2.2, dash: 'dot' }
-      });
-    }
-
-    if (ind.length > 0) {
-      traces.push({
-        x: ind.map(a => a.volatility),
-        y: ind.map(a => a.expected_return),
-        mode: 'markers+text',
-        type: 'scatter',
-        name: 'Individual Assets',
-        text: ind.map(a => a.symbol),
-        textposition: 'top center',
-        textfont: { family: 'monospace', size: 12, color: t.fontColor },
-        marker: { size: 9, color: t.slateColor, symbol: 'circle' }
-      });
-    }
-
-    if (gmv.volatility !== undefined) {
-      traces.push({
-        x: [gmv.volatility],
-        y: [gmv.expected_return],
-        mode: 'markers',
-        type: 'scatter',
-        name: 'GMV (Min Variance)',
-        marker: { size: 14, color: t.amberColor, symbol: 'diamond', line: { color: '#ffffff', width: 1.5 } }
-      });
-    }
-
-    if (tan.volatility !== undefined) {
-      traces.push({
-        x: [tan.volatility],
-        y: [tan.expected_return],
-        mode: 'markers',
-        type: 'scatter',
-        name: 'Tangency (Max Sharpe)',
-        marker: { size: 15, color: t.emeraldColor, symbol: 'circle', line: { color: '#ffffff', width: 2 } }
-      });
-    }
-
-    if (comp.volatility !== undefined) {
-      traces.push({
-        x: [comp.volatility],
-        y: [comp.expected_return],
-        mode: 'markers',
-        type: 'scatter',
-        name: 'Complete Portfolio (C)',
-        marker: { size: 14, color: t.purpleColor, symbol: 'square', line: { color: '#ffffff', width: 1.5 } }
-      });
-    }
-
-    if (bm && bm.benchmark_volatility !== undefined) {
-      traces.push({
-        x: [bm.benchmark_volatility],
-        y: [bm.benchmark_return],
-        mode: 'markers+text',
-        type: 'scatter',
-        name: `Benchmark (${bm.benchmark_symbol})`,
-        text: [`${bm.benchmark_symbol}`],
-        textposition: 'bottom right',
-        textfont: { size: 12, color: t.roseColor },
-        marker: { size: 14, color: t.roseColor, symbol: 'star', line: { color: '#ffffff', width: 1.5 } }
-      });
-    }
-
-    layout = {
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      margin: { l: 70, r: 40, t: 30, b: 60 },
-      font: { family: 'Inter, sans-serif', color: t.fontColor, size: 12 },
-      xaxis: {
-        title: { text: 'Annualized Volatility &sigma; (%)', font: { size: 13 } },
-        tickformat: '.1%',
-        gridcolor: t.gridColor,
-        zerolinecolor: t.zeroLineColor
-      },
-      yaxis: {
-        title: { text: 'Expected Return E(R) (%)', font: { size: 13 } },
-        tickformat: '.1%',
-        gridcolor: t.gridColor,
-        zerolinecolor: t.zeroLineColor
-      },
-      legend: {
-        orientation: 'h',
-        yanchor: 'bottom',
-        y: 1.02,
-        xanchor: 'left',
-        x: 0,
-        font: { size: 11 }
-      },
-      hovermode: 'closest'
-    };
-
   } else if (chartKey === 'weights') {
+    sourceId = 'chart-weights';
     titleEl.textContent = 'Optimal Portfolio Weights Allocation — Fullscreen Inspection';
     subtitleEl.textContent = 'Comparison across GMV, Tangency (Max Sharpe), and Complete Portfolio (C)';
-
-    const syms = d.symbols || [];
-    const wGmv = (d.gmv && d.gmv.weights) || [];
-    const wTan = (d.tangency && d.tangency.weights) || [];
-    const wComp = (d.complete_portfolio && d.complete_portfolio.weights) || [];
-
-    traces = [
-      {
-        x: syms,
-        y: wGmv,
-        name: 'GMV (Min Risk)',
-        type: 'bar',
-        marker: { color: t.amberColor }
-      },
-      {
-        x: syms,
-        y: wTan,
-        name: 'Tangency (Max Sharpe)',
-        type: 'bar',
-        marker: { color: t.navyAccent }
-      },
-      {
-        x: syms,
-        y: wComp,
-        name: 'Complete Portfolio (C)',
-        type: 'bar',
-        marker: { color: t.emeraldColor }
-      }
-    ];
-
-    layout = {
-      barmode: 'group',
-      bargap: 0.25,
-      bargroupgap: 0.1,
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      margin: { l: 70, r: 40, t: 30, b: 60 },
-      font: { family: 'Inter, sans-serif', color: t.fontColor, size: 12 },
-      xaxis: { gridcolor: t.gridColor, tickfont: { size: 13, family: 'monospace' } },
-      yaxis: {
-        title: { text: 'Asset Weight w<sub>i</sub> (%)', font: { size: 13 } },
-        tickformat: '.0%',
-        gridcolor: t.gridColor,
-        zerolinecolor: t.zeroLineColor
-      },
-      legend: {
-        orientation: 'h',
-        yanchor: 'bottom',
-        y: 1.02,
-        xanchor: 'left',
-        x: 0,
-        font: { size: 12 }
-      }
-    };
-
   } else if (chartKey === 'benchmark') {
-    const bm = d.benchmark_comparison || {};
+    sourceId = 'chart-benchmark-cum';
+    const bm = lastAnalysisData.benchmark_comparison || {};
     const sym = (bm.benchmark_symbol || currentBenchmarkSymbol || 'VNINDEX').toUpperCase();
     const rng = (bm.benchmark_range || currentBenchmarkHorizon || '1Y').toUpperCase();
-
     titleEl.textContent = 'Cumulative Wealth Index (Normalized Base = 100) — Fullscreen Inspection';
-    subtitleEl.textContent = `Tangency Portfolio vs. ${sym} Benchmark (${rng})`;
-
-    const cum = bm.cumulative_series || {};
-    const dates = cum.dates || [];
-    const pSeries = cum.portfolio_base100 || [];
-    const bSeries = cum.benchmark_base100 || [];
-
-    if (dates.length > 0) {
-      traces.push({
-        x: dates,
-        y: pSeries,
-        mode: 'lines',
-        type: 'scatter',
-        name: 'Tangency Portfolio (Base 100)',
-        line: { color: t.navyAccent, width: 3 }
-      });
-      traces.push({
-        x: dates,
-        y: bSeries,
-        mode: 'lines',
-        type: 'scatter',
-        name: `${sym} Benchmark (Base 100)`,
-        line: { color: t.roseColor, width: 2.5, dash: 'dot' }
-      });
-    }
-
-    layout = {
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      margin: { l: 70, r: 40, t: 30, b: 60 },
-      font: { family: 'Inter, sans-serif', color: t.fontColor, size: 12 },
-      xaxis: {
-        title: { text: 'Trading Session Date', font: { size: 13 } },
-        gridcolor: t.gridColor
-      },
-      yaxis: {
-        title: { text: 'Indexed Wealth (Base = 100)', font: { size: 13 } },
-        gridcolor: t.gridColor,
-        zerolinecolor: t.zeroLineColor
-      },
-      legend: {
-        orientation: 'h',
-        yanchor: 'bottom',
-        y: 1.02,
-        xanchor: 'left',
-        x: 0,
-        font: { size: 12 }
-      },
-      hovermode: 'x unified'
-    };
+    subtitleEl.textContent = Tangency Portfolio vs.  Benchmark ();
   }
+
+  const sourceEl = document.getElementById(sourceId);
+  if (!sourceEl || !sourceEl.data) {
+    if (chartKey === 'frontier') renderPlotlyFrontier(lastAnalysisData);
+    if (chartKey === 'weights') renderPlotlyWeights(lastAnalysisData);
+    if (chartKey === 'benchmark') renderBenchmarkTab(lastAnalysisData);
+  }
+
+  const traces = JSON.parse(JSON.stringify(sourceEl?.data || []));
+  const layout = JSON.parse(JSON.stringify(sourceEl?.layout || {}));
+
+  // Enhance layout for Fullscreen HD view
+  delete layout.width;
+  delete layout.height;
+  layout.autosize = true;
+  layout.margin = { l: 68, r: 36, t: 36, b: 56 };
+  if (layout.font) layout.font.size = 12;
+  if (layout.legend && layout.legend.font) layout.legend.font.size = 11.5;
+
+  modal.classList.remove('hidden');
 
   const config = {
     responsive: true,
@@ -2104,7 +1857,9 @@ function openChartFullscreen(chartKey) {
   };
 
   Plotly.newPlot('chart-fullscreen-plot', traces, layout, config).then(() => {
-    Plotly.Plots.resize('chart-fullscreen-plot');
+    setTimeout(() => {
+      if (window.Plotly) Plotly.Plots.resize('chart-fullscreen-plot');
+    }, 30);
   });
 }
 

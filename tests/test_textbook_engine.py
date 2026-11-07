@@ -386,7 +386,7 @@ def test_bloomberg_benchmark_attribution_and_fullscreen_ux():
         assert f'id="{kpi_id}"' in html_text, f"Missing {kpi_id} in index.html"
 
     # Cache busting script tag
-    assert 'textbook_mvo.js?v=2.4.2' in html_text, "Missing cache-busting v=2.4.2 script tag"
+    assert 'textbook_mvo.js?v=2.4.3' in html_text, "Missing cache-busting v=2.4.3 script tag"
 
     # 3. Test textbook_mvo.js functions and window exports
     js_path = PROJECT_ROOT / "static" / "textbook_mvo.js"

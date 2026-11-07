@@ -450,18 +450,26 @@
               <span id="chart-mode-label" class="text-[11px] font-mono px-2 py-0.5 rounded swiss-subtle" style="color: var(--text-secondary);">
                 Long-Only (w &ge; 0)
               </span>
-              <button type="button" onclick="openChartFullscreen('frontier')" class="btn-outline px-2 py-1 text-xs hover:text-navy-500 transition inline-flex items-center gap-1" title="Toàn màn hình / Phóng to quan sát">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <button type="button" onclick="openChartFullscreen('frontier')" class="px-2.5 py-1 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);" title="Phóng to toàn màn hình (Fullscreen HD Zoom)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <polyline points="15 3 21 3 21 9" />
                   <polyline points="9 21 3 21 3 15" />
                   <line x1="21" y1="3" x2="14" y2="10" />
                   <line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
-                <span class="text-[10px] font-mono hidden sm:inline">Zoom</span>
+                <span>Fullscreen Zoom</span>
               </button>
             </div>
           </div>
-          <div id="chart-frontier" class="w-full h-[460px]"></div>
+          <div class="relative w-full">
+            <button type="button" onclick="openChartFullscreen('frontier')" class="absolute top-2 right-2 z-10 px-2 py-0.5 text-[11px] font-mono font-medium rounded swiss-card border shadow hover:opacity-100 transition inline-flex items-center gap-1 cursor-pointer opacity-80" style="color: var(--text-primary); border-color: var(--border-strong); background-color: var(--bg-card);" title="Phóng to toàn màn hình">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+              <span>⛶ Zoom</span>
+            </button>
+            <div id="chart-frontier" class="w-full h-[460px]"></div>
+          </div>
         </div>
 
         <!-- Chart 2: Optimal Portfolio Weights Comparison -->
@@ -475,17 +483,25 @@
                 Comparison across GMV, Tangency (Max Sharpe), and Complete Portfolio (C)
               </p>
             </div>
-            <button type="button" onclick="openChartFullscreen('weights')" class="btn-outline px-2 py-1 text-xs hover:text-navy-500 transition inline-flex items-center gap-1" title="Toàn màn hình / Phóng to quan sát">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <button type="button" onclick="openChartFullscreen('weights')" class="px-2.5 py-1 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);" title="Phóng to toàn màn hình (Fullscreen HD Zoom)">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <polyline points="15 3 21 3 21 9" />
                 <polyline points="9 21 3 21 3 15" />
                 <line x1="21" y1="3" x2="14" y2="10" />
                 <line x1="3" y1="21" x2="10" y2="14" />
               </svg>
-              <span class="text-[10px] font-mono hidden sm:inline">Zoom</span>
+              <span>Fullscreen Zoom</span>
             </button>
           </div>
-          <div id="chart-weights" class="w-full h-[320px]"></div>
+          <div class="relative w-full">
+            <button type="button" onclick="openChartFullscreen('weights')" class="absolute top-2 right-2 z-10 px-2 py-0.5 text-[11px] font-mono font-medium rounded swiss-card border shadow hover:opacity-100 transition inline-flex items-center gap-1 cursor-pointer opacity-80" style="color: var(--text-primary); border-color: var(--border-strong); background-color: var(--bg-card);" title="Phóng to toàn màn hình">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+              <span>⛶ Zoom</span>
+            </button>
+            <div id="chart-weights" class="w-full h-[320px]"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -653,14 +669,20 @@
                   Tangency Portfolio vs. Benchmark
                 </span>
               </div>
-              <button type="button" onclick="openChartFullscreen('benchmark')" class="btn-outline px-2 py-1 text-xs hover:text-navy-500 transition inline-flex items-center gap-1" title="Toàn màn hình / Phóng to quan sát">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <button type="button" onclick="openChartFullscreen('benchmark')" class="px-2.5 py-1 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);" title="Phóng to toàn màn hình (Fullscreen HD Zoom)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
-                <span class="text-[10px] font-mono hidden sm:inline">Zoom</span>
+                <span>Fullscreen Zoom</span>
               </button>
             </div>
-            <div class="border rounded p-2" style="border-color: var(--border-color); background-color: var(--bg-card);">
+            <div class="border rounded p-2 relative" style="border-color: var(--border-color); background-color: var(--bg-card);">
+              <button type="button" onclick="openChartFullscreen('benchmark')" class="absolute top-3.5 right-3.5 z-10 px-2 py-0.5 text-[11px] font-mono font-medium rounded swiss-card border shadow hover:opacity-100 transition inline-flex items-center gap-1 cursor-pointer opacity-80" style="color: var(--text-primary); border-color: var(--border-strong); background-color: var(--bg-card);" title="Phóng to toàn màn hình">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+                <span>⛶ Zoom</span>
+              </button>
               <div id="chart-benchmark-cum" class="w-full h-[320px]"></div>
             </div>
           </div>
@@ -823,6 +845,6 @@
     </div>
   </div>
 
-  <script src="/static/textbook_mvo.js?v=2.4.2"></script>
+  <script src="/static/textbook_mvo.js?v=2.4.3"></script>
 </body>
 </html>

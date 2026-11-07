@@ -283,12 +283,19 @@ def index_page():
     html_path = STATIC_DIR / "index.html"
     if not html_path.exists():
         return HTMLResponse("<h1>Đang khởi tạo giao diện Textbook MVO...</h1>")
-    return FileResponse(html_path)
+    return HTMLResponse(
+        content=html_path.read_text(encoding="utf-8"),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/healthz")
 def health_check():
-    return {"status": "ok", "service": "portfolio-optimization-by-khim", "version": "2.4.0"}
+    return {"status": "ok", "service": "portfolio-optimization-by-khim", "version": "2.4.3"}
 
 
 @app.get("/api/presets")
