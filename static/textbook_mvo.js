@@ -1826,7 +1826,7 @@ function openChartFullscreen(chartKey) {
     const sym = (bm.benchmark_symbol || currentBenchmarkSymbol || 'VNINDEX').toUpperCase();
     const rng = (bm.benchmark_range || currentBenchmarkHorizon || '1Y').toUpperCase();
     titleEl.textContent = 'Cumulative Wealth Index (Normalized Base = 100) — Fullscreen Inspection';
-    subtitleEl.textContent = Tangency Portfolio vs.  Benchmark ();
+    subtitleEl.textContent = 'Tangency Portfolio vs. ' + sym + ' Benchmark (' + rng + ')';
   }
 
   const sourceEl = document.getElementById(sourceId);

@@ -295,7 +295,7 @@ def index_page():
 
 @app.get("/healthz")
 def health_check():
-    return {"status": "ok", "service": "portfolio-optimization-by-khim", "version": "2.4.3"}
+    return {"status": "ok", "service": "portfolio-optimization-by-khim", "version": "2.4.4"}
 
 
 @app.get("/api/presets")

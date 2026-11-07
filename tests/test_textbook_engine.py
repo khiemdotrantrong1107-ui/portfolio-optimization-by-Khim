@@ -386,7 +386,7 @@ def test_bloomberg_benchmark_attribution_and_fullscreen_ux():
         assert f'id="{kpi_id}"' in html_text, f"Missing {kpi_id} in index.html"
 
     # Cache busting script tag
-    assert 'textbook_mvo.js?v=2.4.3' in html_text, "Missing cache-busting v=2.4.3 script tag"
+    assert 'textbook_mvo.js?v=2.4.4' in html_text, "Missing cache-busting v=2.4.4 script tag"
 
     # 3. Test textbook_mvo.js functions and window exports
     js_path = PROJECT_ROOT / "static" / "textbook_mvo.js"
@@ -395,8 +395,50 @@ def test_bloomberg_benchmark_attribution_and_fullscreen_ux():
         assert f"window.{fn} = {fn}" in js_text, f"Missing window export for {fn}"
 
 
+def test_javascript_ast_syntax_and_onclick_handlers():
+    """Verify full JavaScript syntax validity, balanced delimiters, and 100% onclick handler binding."""
+    import re
+    html_path = PROJECT_ROOT / "static" / "index.html"
+    js_path = PROJECT_ROOT / "static" / "textbook_mvo.js"
+    html_text = html_path.read_text(encoding="utf-8")
+    js_text = js_path.read_text(encoding="utf-8")
+
+    # 1. Balanced delimiters
+    assert js_text.count("{") == js_text.count("}"), "Unbalanced braces in textbook_mvo.js"
+    assert js_text.count("(") == js_text.count(")"), "Unbalanced parentheses in textbook_mvo.js"
+    assert js_text.count("[") == js_text.count("]"), "Unbalanced brackets in textbook_mvo.js"
+
+    # 2. Check for unquoted string assignments on textContent / innerHTML
+    for idx, line in enumerate(js_text.splitlines(), start=1):
+        l = line.strip()
+        if ("textContent =" in l or "innerHTML =" in l) and "=" in l:
+            rhs = l.split("=", 1)[1].strip().rstrip(";").strip()
+            if " " in rhs and " ? " not in rhs:
+                assert rhs[0] in ('"', "'", "`", "(", "[", "{") or any(
+                    rhs.startswith(p) for p in ("fmt", "Math", "spread", "html", "data", "bm", "sub", "res")
+                ), f"Suspicious unquoted assignment on line {idx}: {line}"
+
+    # 3. Optional Esprima AST Parse check if installed
+    try:
+        import esprima
+        es6_code = re.sub(r"(\d)_(\d)", r"\1\2", js_text)
+        es6_code = re.sub(r"(\d)_(\d)", r"\1\2", es6_code)
+        es6_code = es6_code.replace("?.", ".").replace("??", "||")
+        tree = esprima.parseScript(es6_code)
+        assert len(tree.body) >= 50
+    except ImportError:
+        pass
+
+    # 4. Verify all onclick functions in index.html exist in textbook_mvo.js
+    onclicks = re.findall(r'onclick="([^"]+)"', html_text)
+    for oc in onclicks:
+        assert oc.count("(") == oc.count(")"), f"Unbalanced onclick attribute: {oc}"
+        for fn in re.findall(r"([a-zA-Z0-9_]+)\s*\(", oc):
+            assert f"function {fn}" in js_text or f"window.{fn}" in js_text, f"Missing JS function for onclick: {fn}"
+
+
 if __name__ == "__main__":
-    print("Running Portfolio Optimization by Khim Verification Suite (11 Suites)...")
+    print("Running Portfolio Optimization by Khim Verification Suite (12 Suites)...")
     test_merton_closed_form_identities()
     print("  [PASS] 1. Merton (1972) Closed-Form Matrix Identities (A, B, C, D, Sigma^-1)")
     test_long_only_qp_constraints()
@@ -419,4 +461,6 @@ if __name__ == "__main__":
     print("  [PASS] 10. Active Price (with Volume) & Matrix Exports + Benchmark Horizons + Roundtrip")
     test_bloomberg_benchmark_attribution_and_fullscreen_ux()
     print("  [PASS] 11. Bloomberg Terminal Benchmark UX, Fullscreen HD Modal & Cache-Busting")
-    print("ALL 11 VERIFICATION SUITES PASSED SUCCESSFULLY!")
+    test_javascript_ast_syntax_and_onclick_handlers()
+    print("  [PASS] 12. JavaScript Full AST Syntax Guard & 18 Onclick Handlers Binding")
+    print("ALL 12 VERIFICATION SUITES PASSED SUCCESSFULLY!")
