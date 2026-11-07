@@ -457,6 +457,260 @@ def export_mvo_institutional_workbook(analysis_data: dict[str, Any]) -> bytes:
     for col_i in range(1, 10):
         ws6.column_dimensions[get_column_letter(col_i)].width = 24
 
+    # =========================================================================
+    # SHEET 7: 07_Benchmark_Scorecard (Relative Performance Scoreboard)
+    # =========================================================================
+    bm_data: dict[str, Any] = analysis_data.get("benchmark_comparison", {})
+    ws7 = wb.create_sheet(title="07_Benchmark_Scorecard")
+    ws7.views.sheetView[0].showGridLines = True
+
+    ws7.merge_cells("A1:D2")
+    ws7["A1"] = "BẢNG ĐÁNH GIÁ HIỆU QUẢ TƯƠNG ĐỐI VỚI CHỈ SỐ THỊ TRƯỜNG (BENCHMARK SCORECARD)"
+    _style_range(ws7, 1, 1, 4, 2, font=title_font, fill=navy_fill, align=Alignment(horizontal="center", vertical="center"))
+
+    bm_sym = bm_data.get("benchmark_symbol", "VNINDEX")
+    bm_name = bm_data.get("benchmark_name", "VN-Index (HOSE Composite)")
+    bm_rng = bm_data.get("benchmark_range", "1Y")
+
+    ws7["A4"] = f"CHỈ SỐ THAM CHIẾU: {bm_name} ({bm_sym}) — KHUNG THỜI GIAN SO SÁNH: {bm_rng}"
+    ws7["A4"].font = sec_font
+
+    bm_hdrs = ["Chỉ Tiêu Đánh Giá (Metric)", "Danh Mục Tối Ưu (Tangency)", f"Benchmark ({bm_sym})", "Chênh Lệch / Nhận Định"]
+    for col_i, h in enumerate(bm_hdrs, start=1):
+        c = ws7.cell(row=6, column=col_i, value=h)
+        c.fill = sub_fill
+        c.font = tbl_hdr_font
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thin_border
+
+    p_ret = float(bm_data.get("portfolio_return", tan["expected_return"]))
+    b_ret = float(bm_data.get("benchmark_return", 0.115))
+    act_ret = float(bm_data.get("active_return", p_ret - b_ret))
+    p_vol = float(bm_data.get("portfolio_volatility", tan["volatility"]))
+    b_vol = float(bm_data.get("benchmark_volatility", 0.18))
+    p_sr = float(bm_data.get("portfolio_sharpe", tan["sharpe_ratio"]))
+    b_sr = float(bm_data.get("benchmark_sharpe", 0.40))
+    sr_spread = float(bm_data.get("sharpe_spread", p_sr - b_sr))
+    beta_val = float(bm_data.get("beta", 1.0))
+    alpha_val = float(bm_data.get("jensen_alpha", 0.0))
+    te_val = float(bm_data.get("tracking_error", 0.10))
+    ir_val = float(bm_data.get("information_ratio", 0.0))
+    corr_bm = float(bm_data.get("correlation", 0.75))
+    r2_bm = float(bm_data.get("r_squared", corr_bm**2))
+
+    score_rows = [
+        ("Lợi suất Kỳ vọng Năm hóa E(R)", p_ret, b_ret, act_ret, "0.00%"),
+        ("Độ biến động Năm hóa (Volatility σ)", p_vol, b_vol, p_vol - b_vol, "0.00%"),
+        ("Tỷ số Sharpe (Sharpe Ratio)", p_sr, b_sr, sr_spread, "0.000"),
+        ("Lợi suất Chủ động (Active Return = Rp - Rm)", act_ret, 0.0, "Outperform" if act_ret >= 0 else "Underperform", "0.00%"),
+        ("Jensen's Alpha (α = Rp - [Rf + β(Rm - Rf)])", alpha_val, 0.0, "Tạo Alpha dương" if alpha_val >= 0 else "Alpha âm", "0.00%"),
+        ("Hệ số Beta Danh mục (βp)", beta_val, 1.0, "Nhạy hơn thị trường" if beta_val > 1.05 else ("Phòng thủ (< 1)" if beta_val < 0.95 else "Tương đương TT"), "0.000"),
+        ("Sai số Bám sát (Tracking Error - TE)", te_val, 0.0, "Rủi ro chủ động", "0.00%"),
+        ("Tỷ số Thông tin (Information Ratio - IR)", ir_val, 0.0, "Xuất sắc (> 0.5)" if ir_val >= 0.5 else "Trung bình", "0.000"),
+        ("Hệ số Tương quan với Chỉ số (Correlation ρ)", corr_bm, 1.0, f"R² = {r2_bm * 100:.1f}%", "0.000"),
+        ("Hệ số Xác định (R-Squared R²)", r2_bm, 1.0, "Mức độ giải thích bởi thị trường", "0.00%"),
+    ]
+
+    for idx, (m_label, v_port, v_bm, v_diff, num_fmt) in enumerate(score_rows, start=7):
+        ws7.cell(row=idx, column=1, value=m_label).font = bold_font
+        c2 = ws7.cell(row=idx, column=2, value=v_port)
+        c2.number_format = num_fmt
+        c2.font = bold_font
+
+        c3 = ws7.cell(row=idx, column=3, value=v_bm)
+        c3.number_format = num_fmt
+        c3.font = reg_font
+
+        c4 = ws7.cell(row=idx, column=4, value=v_diff)
+        if isinstance(v_diff, float):
+            c4.number_format = num_fmt
+            c4.font = bold_font
+        else:
+            c4.font = reg_font
+
+        _style_range(ws7, 1, idx, 4, idx, border=thin_border, fill=zebra_fill if idx % 2 == 1 else None)
+
+    # Cumulative Wealth Series (Base = 100)
+    cum_block = bm_data.get("cumulative_series", {})
+    c_dates = cum_block.get("dates", [])
+    c_port = cum_block.get("portfolio_base100", [])
+    c_bm = cum_block.get("benchmark_base100", [])
+
+    if c_dates and len(c_dates) == len(c_port) == len(c_bm):
+        ws7["A19"] = f"CHUỖI TĂNG TRƯỞNG TÀI SẢN LŨY KẾ (CUMULATIVE WEALTH INDEX - BASE = 100, {len(c_dates)} PHIÊN)"
+        ws7["A19"].font = sec_font
+
+        series_hdrs = ["Ngày Giao Dịch (Date)", "Tangency Portfolio (Base=100)", f"{bm_sym} Benchmark (Base=100)", "Chênh Lệch Lũy Kế (Spread)"]
+        for col_i, h in enumerate(series_hdrs, start=1):
+            c = ws7.cell(row=20, column=col_i, value=h)
+            c.fill = navy_fill
+            c.font = tbl_hdr_font
+            c.alignment = Alignment(horizontal="center")
+            c.border = thin_border
+
+        for s_idx, (dt_s, vp, vb) in enumerate(zip(c_dates, c_port, c_bm), start=21):
+            ws7.cell(row=s_idx, column=1, value=dt_s).alignment = Alignment(horizontal="center")
+            ws7.cell(row=s_idx, column=2, value=float(vp)).number_format = "0.00"
+            ws7.cell(row=s_idx, column=3, value=float(vb)).number_format = "0.00"
+            ws7.cell(row=s_idx, column=4, value=float(vp) - float(vb)).number_format = "+0.00;-0.00;0.00"
+            _style_range(ws7, 1, s_idx, 4, s_idx, border=thin_border, font=reg_font)
+
+    for col_i, w in enumerate([44, 28, 28, 30], start=1):
+        ws7.column_dimensions[get_column_letter(col_i)].width = w
+
+    # =========================================================================
+    # SHEET 8: 08_Stress_Testing_VaR (Tail Risk & Historical Crisis Scenarios)
+    # =========================================================================
+    st_data: dict[str, Any] = analysis_data.get("stress_testing", {})
+    var_m: dict[str, Any] = st_data.get("var_metrics", {})
+    scenarios_list: list[dict[str, Any]] = st_data.get("scenarios", [])
+
+    ws8 = wb.create_sheet(title="08_Stress_Testing_VaR")
+    ws8.views.sheetView[0].showGridLines = True
+
+    ws8.merge_cells("A1:H2")
+    ws8["A1"] = "BÁO CÁO KIỂM ĐỊNH ÁP LỰC (STRESS TESTING) & QUẢN TRỊ RỦI RO ĐUÔI (VALUE AT RISK / CVaR)"
+    _style_range(ws8, 1, 1, 8, 2, font=title_font, fill=navy_fill, align=Alignment(horizontal="center", vertical="center"))
+
+    ws8["A4"] = f"1. CHỈ SỐ RỦI RO ĐUÔI (TAIL-RISK METRICS) — PHƯƠNG PHÁP: {st_data.get('method', 'Historical Simulation')}"
+    ws8["A4"].font = sec_font
+
+    var_hdrs = [
+        "Chỉ Số Rủi Ro (Risk Metric)",
+        "Tỷ Lệ Tổn Thất 1 Ngày (%)",
+        "Giá Trị Rủi Ro 1 Ngày (VNĐ)",
+        "Tỷ Lệ Tổn Thất 1 Tháng / 21 Phiên (%)",
+        "Giá Trị Rủi Ro 1 Tháng / 21 Phiên (VNĐ)",
+        "Ý Nghĩa Quản Trị Rủi Ro",
+    ]
+    for col_i, h in enumerate(var_hdrs, start=1):
+        c = ws8.cell(row=6, column=col_i, value=h)
+        c.fill = sub_fill
+        c.font = tbl_hdr_font
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thin_border
+
+    var_rows = [
+        (
+            "Value at Risk (VaR 95%)",
+            float(var_m.get("var_95_1d_pct", 0.0)),
+            float(var_m.get("var_95_1d_vnd", 0.0)),
+            float(var_m.get("var_95_21d_pct", 0.0)),
+            float(var_m.get("var_95_21d_vnd", 0.0)),
+            "Mức lỗ tối đa với độ tin cậy 95% trong điều kiện thị trường bình thường",
+        ),
+        (
+            "Value at Risk (VaR 99%)",
+            float(var_m.get("var_99_1d_pct", 0.0)),
+            float(var_m.get("var_99_1d_vnd", 0.0)),
+            float(var_m.get("var_99_21d_pct", 0.0)),
+            float(var_m.get("var_99_21d_vnd", 0.0)),
+            "Mức lỗ tối đa với độ tin cậy 99% (chuẩn Basel ủy ban rủi ro)",
+        ),
+        (
+            "Conditional VaR / Expected Shortfall (CVaR 95%)",
+            float(var_m.get("cvar_95_1d_pct", 0.0)),
+            float(var_m.get("cvar_95_1d_vnd", 0.0)),
+            float(var_m.get("cvar_95_21d_pct", 0.0)),
+            float(var_m.get("cvar_95_21d_vnd", 0.0)),
+            "Tổn thất trung bình kỳ vọng khi thị trường rơi vào vùng 5% xấu nhất",
+        ),
+        (
+            "Conditional VaR / Expected Shortfall (CVaR 99%)",
+            float(var_m.get("cvar_99_1d_pct", 0.0)),
+            float(var_m.get("cvar_99_1d_vnd", 0.0)),
+            float(var_m.get("cvar_99_1d_pct", 0.0)) * math.sqrt(21.0),
+            float(var_m.get("cvar_99_1d_vnd", 0.0)) * math.sqrt(21.0),
+            "Tổn thất trung bình kỳ vọng khi xảy ra biến cố cực đoan 1% đuôi phân phối",
+        ),
+    ]
+
+    for idx, (lbl, p1, v1, p21, v21, desc) in enumerate(var_rows, start=7):
+        ws8.cell(row=idx, column=1, value=lbl).font = bold_font
+        c_p1 = ws8.cell(row=idx, column=2, value=-abs(p1))
+        c_p1.number_format = "0.00%"
+        c_p1.font = bold_font
+
+        c_v1 = ws8.cell(row=idx, column=3, value=-abs(v1))
+        c_v1.number_format = "#,##0"
+        c_v1.font = reg_font
+
+        c_p21 = ws8.cell(row=idx, column=4, value=-abs(p21))
+        c_p21.number_format = "0.00%"
+        c_p21.font = bold_font
+
+        c_v21 = ws8.cell(row=idx, column=5, value=-abs(v21))
+        c_v21.number_format = "#,##0"
+        c_v21.font = reg_font
+
+        ws8.cell(row=idx, column=6, value=desc).font = reg_font
+        _style_range(ws8, 1, idx, 6, idx, border=thin_border, fill=zebra_fill if idx % 2 == 1 else None)
+
+    mdd_comp = float(var_m.get("max_drawdown_complete_pct", 0.0))
+    mdd_risky = float(var_m.get("max_drawdown_risky_pct", 0.0))
+
+    ws8.cell(row=11, column=1, value="Maximum Drawdown (Danh mục Tổng thể Complete C)").font = bold_font
+    ws8.cell(row=11, column=2, value=-abs(mdd_comp)).number_format = "0.00%"
+    ws8.cell(row=11, column=3, value=-abs(mdd_comp * nav_vnd)).number_format = "#,##0"
+    ws8.cell(row=11, column=6, value="Mức sụt giảm đỉnh-đáy lớn nhất của Danh mục tổng thể (đã tính đệm Tiền mặt)").font = reg_font
+    _style_range(ws8, 1, 11, 6, 11, border=thin_border)
+
+    ws8.cell(row=12, column=1, value="Maximum Drawdown (Danh mục Cổ phiếu Tangency P*)").font = bold_font
+    ws8.cell(row=12, column=2, value=-abs(mdd_risky)).number_format = "0.00%"
+    ws8.cell(row=12, column=3, value=-abs(mdd_risky * nav_vnd)).number_format = "#,##0"
+    ws8.cell(row=12, column=6, value="Mức sụt giảm đỉnh-đáy lớn nhất của rổ 100% cổ phiếu rủi ro").font = reg_font
+    _style_range(ws8, 1, 12, 6, 12, border=thin_border, fill=zebra_fill)
+
+    # Historical Crisis Scenarios Table
+    ws8["A15"] = "2. KIỂM ĐỊNH SỨC CHỊU ĐỰNG QUA CÁC KỊCH BẢN KHỦNG HOẢNG LỊCH SỬ TTCK VIỆT NAM"
+    ws8["A15"].font = sec_font
+
+    sc_hdrs = [
+        "Kịch Bản Cú Sốc Lịch Sử (Crisis Scenario)",
+        "Giai Đoạn",
+        "Cú Sốc Thị Trường (VN-Index)",
+        "Tác Động Rổ CP Tangency (%)",
+        "Tác Động Danh Mục Tổng Thể C (%)",
+        "Tổn Thất Ước Tính (VNĐ)",
+        "NAV Còn Lại Sau Cú Sốc (VNĐ)",
+        "Giá Trị Đệm Tiền Mặt Bảo Vệ (VNĐ)",
+    ]
+    for col_i, h in enumerate(sc_hdrs, start=1):
+        c = ws8.cell(row=16, column=col_i, value=h)
+        c.fill = navy_fill
+        c.font = tbl_hdr_font
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thin_border
+
+    for s_idx, sc in enumerate(scenarios_list, start=17):
+        ws8.cell(row=s_idx, column=1, value=sc.get("name", "")).font = bold_font
+        ws8.cell(row=s_idx, column=2, value=sc.get("period", "")).alignment = Alignment(horizontal="center")
+
+        c_ms = ws8.cell(row=s_idx, column=3, value=float(sc.get("market_shock_pct", 0.0)))
+        c_ms.number_format = "0.00%"
+
+        c_rk = ws8.cell(row=s_idx, column=4, value=float(sc.get("risky_only_impact_pct", 0.0)))
+        c_rk.number_format = "0.00%"
+
+        c_cp = ws8.cell(row=s_idx, column=5, value=float(sc.get("complete_impact_pct", 0.0)))
+        c_cp.number_format = "0.00%"
+        c_cp.font = bold_font
+
+        c_loss = ws8.cell(row=s_idx, column=6, value=-abs(float(sc.get("estimated_loss_vnd", 0.0))))
+        c_loss.number_format = "#,##0"
+        c_loss.font = bold_font
+
+        c_post = ws8.cell(row=s_idx, column=7, value=float(sc.get("post_shock_nav_vnd", 0.0)))
+        c_post.number_format = "#,##0"
+
+        c_prot = ws8.cell(row=s_idx, column=8, value=float(sc.get("cash_protection_vnd", 0.0)))
+        c_prot.number_format = "#,##0"
+
+        _style_range(ws8, 1, s_idx, 8, s_idx, border=thin_border, fill=zebra_fill if s_idx % 2 == 1 else None)
+
+    for col_i, w in enumerate([40, 18, 22, 24, 26, 24, 26, 26], start=1):
+        ws8.column_dimensions[get_column_letter(col_i)].width = w
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

@@ -38,6 +38,8 @@ RANGE_DAYS_MAP = {
     "2y": 750,
     "3y": 1120,
     "5y": 1850,
+    "ytd": 380,
+    "max": 3650,
 }
 
 
@@ -63,9 +65,34 @@ def _generate_fallback_benchmark_series(symbol: str = "VNINDEX", n_days: int = 2
     return pd.Series(levels, index=dates, name=sym)
 
 
+def _slice_series_by_horizon(s: pd.Series | pd.DataFrame, rng_key: str):
+    """Slice a DatetimeIndex Series or DataFrame according to horizon ('6m', '1y', '2y', '3y', '5y', 'ytd', 'max')."""
+    if len(s) < 5:
+        return s
+    last_dt = s.index[-1]
+    rk = (rng_key or "1y").strip().lower()
+    if rk == "ytd":
+        cutoff = pd.Timestamp(year=last_dt.year, month=1, day=1)
+    elif rk == "6m":
+        cutoff = last_dt - pd.Timedelta(days=183)
+    elif rk == "1y":
+        cutoff = last_dt - pd.Timedelta(days=366)
+    elif rk == "2y":
+        cutoff = last_dt - pd.Timedelta(days=731)
+    elif rk == "3y":
+        cutoff = last_dt - pd.Timedelta(days=1096)
+    elif rk == "5y":
+        cutoff = last_dt - pd.Timedelta(days=1826)
+    else:
+        return s
+    sliced = s[s.index >= cutoff]
+    return sliced if len(sliced) >= 5 else s
+
+
 def fetch_benchmark_series(symbol: str = "VNINDEX", range_str: str = "1y") -> pd.Series:
     """
     Fetch daily closing levels for VNINDEX or VN30 from VNDirect DChart API.
+    Supports horizons: 6m, 1y, 2y, 3y, 5y, ytd, max.
     Automatically caches in memory and falls back cleanly if offline.
     """
     sym = (symbol or "VNINDEX").strip().upper()
@@ -107,11 +134,13 @@ def fetch_benchmark_series(symbol: str = "VNINDEX", range_str: str = "1y") -> pd
         dates = pd.to_datetime(timestamps, unit="s").normalize()
         s = pd.Series(closes, index=dates, name=sym, dtype=float)
         s = s[~s.index.duplicated(keep="last")].sort_index().dropna()
+        s = _slice_series_by_horizon(s, rng_key)
         _BENCHMARK_CACHE[cache_key] = (now, s)
         return s.copy()
     except Exception:
         n_sessions = max(60, int(lookback_days * 252 / 365))
         s_fb = _generate_fallback_benchmark_series(sym, n_days=n_sessions)
+        s_fb = _slice_series_by_horizon(s_fb, rng_key)
         _BENCHMARK_CACHE[cache_key] = (now, s_fb)
         return s_fb.copy()
 
@@ -129,27 +158,29 @@ def compute_benchmark_comparison(
     - Benchmark Annualized Return E(R_m), Volatility σ_m, Sharpe Ratio
     - Portfolio Beta (β), Jensen's Alpha (α)
     - Tracking Error (TE), Active Return, Information Ratio (IR), Correlation, R²
-    - Cumulative Wealth Index (Base 100) for Portfolio vs Benchmark
+    - Cumulative Wealth Index (Base 100) for Portfolio vs Benchmark across selected Time Horizon
     """
     bm_sym = (benchmark_symbol or "VNINDEX").strip().upper()
     if bm_sym not in ("VNINDEX", "VN30"):
         bm_sym = "VNINDEX"
+    rng_key = (range_str or "1y").strip().lower()
 
     port_ret = float(tangency_stats["expected_return"])
     port_vol = float(tangency_stats["volatility"])
     port_sr = float(tangency_stats["sharpe_ratio"])
 
     if df_asset_returns is not None and len(df_asset_returns) >= 10:
-        s_bm = fetch_benchmark_series(bm_sym, range_str=range_str)
+        s_bm = fetch_benchmark_series(bm_sym, range_str=rng_key)
         r_bm = s_bm.pct_change().dropna()
 
         # Normalize indices to date-only for exact alignment
         df_port_ret = df_asset_returns.copy()
         df_port_ret.index = pd.to_datetime(df_port_ret.index).normalize()
+        df_port_ret = _slice_series_by_horizon(df_port_ret, rng_key)
         r_bm.index = pd.to_datetime(r_bm.index).normalize()
 
         common_idx = df_port_ret.index.intersection(r_bm.index)
-        if len(common_idx) >= 15:
+        if len(common_idx) >= 10:
             p_daily = (df_port_ret.loc[common_idx] @ w_tangency).to_numpy(dtype=float, copy=True)
             m_daily = r_bm.loc[common_idx].to_numpy(dtype=float, copy=True)
             dates_str = [d.strftime("%Y-%m-%d") for d in common_idx]
@@ -159,6 +190,11 @@ def compute_benchmark_comparison(
             p_daily = p_daily[-m_len:]
             m_daily = r_bm.to_numpy(dtype=float, copy=True)[-m_len:]
             dates_str = [d.strftime("%Y-%m-%d") for d in df_port_ret.index[-m_len:]]
+
+        if len(p_daily) >= 10:
+            port_ret = float(np.mean(p_daily) * TRADING_DAYS)
+            port_vol = float(np.std(p_daily, ddof=1) * math.sqrt(TRADING_DAYS))
+            port_sr = (port_ret - rf) / port_vol if port_vol > 1e-8 else 0.0
 
         bm_ret = float(np.mean(m_daily) * TRADING_DAYS)
         bm_vol = float(np.std(m_daily, ddof=1) * math.sqrt(TRADING_DAYS))
@@ -197,6 +233,8 @@ def compute_benchmark_comparison(
 
     return {
         "benchmark_symbol": bm_sym,
+        "benchmark_range": rng_key.upper(),
+        "sessions_compared": len(dates_str),
         "benchmark_name": "VN-Index (HOSE Composite)" if bm_sym == "VNINDEX" else "VN30 Index (Large-Cap Bluechips)",
         "benchmark_return": float(bm_ret),
         "benchmark_volatility": float(bm_vol),

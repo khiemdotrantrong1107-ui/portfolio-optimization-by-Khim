@@ -1,14 +1,14 @@
 """
 Data Loader & Parser for Textbook MVO Application.
-Supports:
-1. Built-in Vietnam Market Bluechip Dataset (252+ sessions, HOSE stocks)
-2. Built-in Textbook Manual Parameters Preset (Bodie-Kane-Marcus style)
-3. Excel (.xlsx) & CSV Upload Parser (both Historical Price Series and E(R)/Std/Correlation Matrix formats)
+100% Real Data Architecture (Zero Synthetic Fallback):
+- Parses uploaded Excel (.xlsx) & CSV files in both:
+  * Mode A: Parameter Matrix (Symbol, Expected_Return, Std_Dev, [Latest_Price], + Correlation Matrix)
+  * Mode B: Historical Closing Prices (Date + Stock Price columns, plus optional Trading_Volume sheet)
+- Preserves uploaded price & volume series in memory for roundtrip export and benchmark alignment.
 """
 from __future__ import annotations
 
 import io
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -16,77 +16,13 @@ import pandas as pd
 
 from engine import textbook_math
 
-WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent
-
-STOCK_METADATA = {
-    "FPT": {"name": "FPT Corp", "sector": "Công nghệ", "base_price": 114500.0, "mu": 0.24, "vol": 0.22},
-    "MWG": {"name": "Thế Giới Di Động", "sector": "Bán lẻ", "base_price": 65200.0, "mu": 0.16, "vol": 0.29},
-    "VCB": {"name": "Vietcombank", "sector": "Ngân hàng", "base_price": 91500.0, "mu": 0.13, "vol": 0.18},
-    "TCB": {"name": "Techcombank", "sector": "Ngân hàng", "base_price": 24300.0, "mu": 0.18, "vol": 0.27},
-    "HPG": {"name": "Tập đoàn Hòa Phát", "sector": "Thép & Vật liệu", "base_price": 27100.0, "mu": 0.17, "vol": 0.28},
-    "SSI": {"name": "Chứng khoán SSI", "sector": "Chứng khoán", "base_price": 26800.0, "mu": 0.20, "vol": 0.33},
-    "VNM": {"name": "Vinamilk", "sector": "Tiêu dùng", "base_price": 66400.0, "mu": 0.09, "vol": 0.16},
-    "REE": {"name": "Cơ Điện Lạnh REE", "sector": "Năng lượng & Hạ tầng", "base_price": 64800.0, "mu": 0.15, "vol": 0.21},
-    "GMD": {"name": "Gemadept", "sector": "Cảng & Logistics", "base_price": 78500.0, "mu": 0.21, "vol": 0.24},
-    "GAS": {"name": "PV GAS", "sector": "Dầu khí & Tiện ích", "base_price": 71200.0, "mu": 0.10, "vol": 0.19},
-}
+# In-memory cache of the most recently uploaded historical price dataset (Mode B)
+_LAST_UPLOADED_DATASET: dict[str, Any] = {}
 
 
-def get_market_price_dataframe(symbols: list[str] | None = None, n_sessions: int = 252) -> pd.DataFrame:
-    """
-    Generate or load calibrated 252-session daily closing prices for selected HOSE stocks.
-    Uses deterministic seed and realistic cross-asset factor correlations.
-    """
-    syms = [s.strip().upper() for s in (symbols or ["FPT", "MWG", "VCB", "HPG", "SSI"])]
-    syms = [s for s in syms if s in STOCK_METADATA]
-    if len(syms) < 2:
-        syms = ["FPT", "MWG", "VCB", "HPG"]
-
-    all_syms = list(STOCK_METADATA.keys())
-    k = len(all_syms)
-    rng = np.random.default_rng(20260252)
-
-    dates = pd.bdate_range(end="2026-10-30", periods=n_sessions + 1)
-
-    # Construct realistic market + sector correlation structure
-    market_factor = rng.normal(0.0003, 0.010, size=n_sessions)
-    fin_factor = rng.normal(0.0001, 0.008, size=n_sessions)
-
-    price_dict: dict[str, list[float]] = {}
-    for sym in all_syms:
-        meta = STOCK_METADATA[sym]
-        daily_mu = meta["mu"] / 252.0
-        daily_vol = meta["vol"] / np.sqrt(252.0)
-
-        beta_m = 0.85 if meta["sector"] not in ["Ngân hàng", "Chứng khoán"] else 1.15
-        beta_fin = 0.75 if meta["sector"] in ["Ngân hàng", "Chứng khoán"] else 0.10
-
-        idio_vol = max(0.005, np.sqrt(max(daily_vol**2 - (beta_m * 0.010) ** 2, 0.00004)))
-        idio = rng.normal(0.0, idio_vol, size=n_sessions)
-
-        raw_rets = daily_mu + beta_m * (market_factor - np.mean(market_factor)) + beta_fin * fin_factor + idio
-        # Center sample mean/vol softly around calibrated realistic values
-        raw_rets = (raw_rets - np.mean(raw_rets)) * (daily_vol / np.std(raw_rets, ddof=1)) + daily_mu
-
-        p0 = meta["base_price"] / float(np.prod(1.0 + raw_rets))
-        prices = [p0]
-        for r in raw_rets:
-            prices.append(round(prices[-1] * (1.0 + float(r)), 2))
-        price_dict[sym] = prices
-
-    # Override MWG with real CSV data if available and matching length
-    mwg_csv = WORKSPACE_ROOT / "MWG_5y_daily_2021-11-02_2026-11-02.csv"
-    if mwg_csv.exists() and "MWG" in syms:
-        try:
-            df_mwg = pd.read_csv(mwg_csv)
-            if "close_vnd" in df_mwg.columns and len(df_mwg) >= n_sessions + 1:
-                price_dict["MWG"] = df_mwg["close_vnd"].iloc[-(n_sessions + 1) :].astype(float).tolist()
-        except Exception:
-            pass
-
-    df = pd.DataFrame({s: price_dict[s] for s in syms}, index=dates)
-    df.index.name = "Date"
-    return df
+def get_last_uploaded_dataset() -> dict[str, Any]:
+    """Return the most recently uploaded historical price dataset if available."""
+    return _LAST_UPLOADED_DATASET
 
 
 def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
@@ -96,17 +32,27 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
     - Mode B: Historical Closing Prices (Column 0: Date, Columns 1..N: Stock Prices)
     """
     fname = filename.lower()
+    df_vol_raw = None
+
     if fname.endswith(".csv"):
         df = pd.read_csv(io.BytesIO(file_bytes))
     elif fname.endswith(".xlsx") or fname.endswith(".xls"):
         xls = pd.ExcelFile(io.BytesIO(file_bytes))
-        # Prefer sheet named 'Parameters', 'Prices', or first sheet
         sheet_to_read = xls.sheet_names[0]
         for sname in xls.sheet_names:
             if sname.lower() in ["parameters", "manual_params", "prices", "historical_prices"]:
                 sheet_to_read = sname
                 break
         df = pd.read_excel(xls, sheet_name=sheet_to_read)
+
+        # Check if Trading_Volume sheet is also present for roundtrip fidelity
+        for sname in xls.sheet_names:
+            if sname.lower() in ["trading_volume", "volume", "volumes"]:
+                try:
+                    df_vol_raw = pd.read_excel(xls, sheet_name=sname)
+                except Exception:
+                    df_vol_raw = None
+                break
     else:
         raise ValueError("Định dạng file không hỗ trợ. Vui lòng tải lên file .xlsx hoặc .csv.")
 
@@ -116,7 +62,11 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
     # Detect Mode A: Manual Parameters Table
     if "symbol" in cols_lower and ("expected_return" in cols_lower or "e(r)" in cols_lower):
         sym_col = df.columns[cols_lower.index("symbol")]
-        er_col = df.columns[cols_lower.index("expected_return") if "expected_return" in cols_lower else cols_lower.index("e(r)")]
+        er_col = df.columns[
+            cols_lower.index("expected_return")
+            if "expected_return" in cols_lower
+            else cols_lower.index("e(r)")
+        ]
         std_col = df.columns[
             cols_lower.index("std_dev")
             if "std_dev" in cols_lower
@@ -129,6 +79,8 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
 
         symbols = [str(x).strip().upper() for x in df_sub[sym_col].tolist()]
         n = len(symbols)
+        if n < 2:
+            raise ValueError("Bảng ma trận tham số cần tối thiểu 2 mã cổ phiếu hợp lệ.")
 
         er_raw = df_sub[er_col].astype(float).to_numpy(dtype=float, copy=True)
         std_raw = df_sub[std_col].astype(float).to_numpy(dtype=float, copy=True)
@@ -137,6 +89,15 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
         if np.max(np.abs(er_raw)) > 1.5 or np.max(std_raw) > 1.5:
             er_raw = er_raw / 100.0
             std_raw = std_raw / 100.0
+
+        # Optional Latest_Price column
+        latest_prices: dict[str, float] = {}
+        for lp_key in ("latest_price", "market_price", "price"):
+            if lp_key in cols_lower:
+                lp_col = df.columns[cols_lower.index(lp_key)]
+                lp_vals = pd.to_numeric(df_sub[lp_col], errors="coerce").fillna(50000.0).tolist()
+                latest_prices = {symbols[i]: float(lp_vals[i]) for i in range(n)}
+                break
 
         # Extract correlation columns matching symbols
         corr_mat = np.eye(n, dtype=float)
@@ -150,6 +111,7 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
             expected_returns=er_raw.tolist(),
             std_devs=std_raw.tolist(),
             corr_matrix=corr_mat.tolist(),
+            latest_prices=latest_prices or None,
         )
         moments["source_type"] = "uploaded_parameters"
         return moments
@@ -171,11 +133,40 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
             numeric_cols.append(c)
 
     if len(numeric_cols) < 2:
-        raise ValueError("File dữ liệu giá cần ít nhất 2 cột mã cổ phiếu hợp lệ.")
+        raise ValueError("File dữ liệu giá cần ít nhất 2 cột mã cổ phiếu hợp lệ (tối thiểu 10 phiên).")
 
     df_clean = df_prices[numeric_cols].dropna(how="any")
     df_clean.columns = [str(c).strip().upper() for c in df_clean.columns]
+    df_clean.index.name = "Date"
+
+    # Align optional Trading_Volume sheet if present
+    df_vol_clean = None
+    if df_vol_raw is not None and len(df_vol_raw.columns) >= 2:
+        try:
+            v_date_col = df_vol_raw.columns[0]
+            df_v = df_vol_raw.copy()
+            df_v[v_date_col] = pd.to_datetime(df_v[v_date_col])
+            df_v = df_v.set_index(v_date_col).sort_index()
+            df_v.columns = [str(c).strip().upper() for c in df_v.columns]
+            common_syms = [s for s in df_clean.columns if s in df_v.columns]
+            if common_syms:
+                df_vol_clean = df_v[common_syms].apply(pd.to_numeric, errors="coerce").reindex(df_clean.index).fillna(0.0)
+                df_vol_clean.index.name = "Date"
+        except Exception:
+            df_vol_clean = None
 
     moments = textbook_math.compute_moments_from_prices(df_clean, trading_days=252)
     moments["source_type"] = "uploaded_prices"
+    moments["volumes_df"] = df_vol_clean
+
+    # Cache for subsequent export/benchmark operations
+    _LAST_UPLOADED_DATASET.clear()
+    _LAST_UPLOADED_DATASET.update({
+        "filename": filename,
+        "symbols": moments["symbols"],
+        "df_prices": df_clean,
+        "df_volumes": df_vol_clean,
+        "daily_returns_df": moments["daily_returns_df"],
+        "latest_prices": moments["latest_prices"],
+    })
     return moments

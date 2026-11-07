@@ -295,10 +295,20 @@ def fetch_single_equity(symbol: str, range_str: str = "1y", api_key: str | None 
     """
     Fetch historical daily price series for a single Vietnamese equity (HOSE/HNX/UPCoM).
     Uses in-memory caching for speed and rate-limit protection.
+    HayInsights API natively accepts: 5d, 1m, 3m, 6m, 1y, 3y, 5y, max.
     """
     sym = symbol.strip().upper()
-    rng = range_str.strip().lower()
-    cache_key = (sym, rng)
+    rng_raw = (range_str or "1y").strip().lower()
+    # Map 2y -> 3y and ytd -> 1y for upstream API query; slicing is handled downstream
+    api_rng_map = {
+        "2y": "3y",
+        "ytd": "1y",
+    }
+    api_rng = api_rng_map.get(rng_raw, rng_raw)
+    if api_rng not in ("5d", "1m", "3m", "6m", "1y", "3y", "5y", "max"):
+        api_rng = "1y"
+
+    cache_key = (sym, api_rng)
 
     now = time.time()
     if cache_key in _PRICE_CACHE:
@@ -308,15 +318,15 @@ def fetch_single_equity(symbol: str, range_str: str = "1y", api_key: str | None 
 
     key = (api_key or load_api_key()).strip()
     if not key:
-        raise ValueError("Chưa cấu hình HAYINSIGHTS_API_KEY trong file .env.")
+        raise ValueError("Chưa cấu hình HAYINSIGHTS_API_KEY trong biến môi trường hoặc file .env.")
 
-    url = f"{BASE_URL}/market/vn/equities/{urllib.parse.quote(sym)}/prices?range={urllib.parse.quote(rng)}"
+    url = f"{BASE_URL}/market/vn/equities/{urllib.parse.quote(sym)}/prices?range={urllib.parse.quote(api_rng)}"
     req = urllib.request.Request(
         url,
         headers={
             "X-API-Key": key,
             "Accept": "application/json",
-            "User-Agent": "TextbookMVO-Workbench/2.3",
+            "User-Agent": "TextbookMVO-Workbench/2.4",
         },
         method="GET",
     )
@@ -383,7 +393,7 @@ def fetch_multi_equity_dataset(
 ) -> dict[str, Any]:
     """
     Fetch multiple equities concurrently from HayInsights API, align trading dates,
-    and return both adjusted price DataFrame (for MVO returns/covariance) and
+    and return aligned DataFrames for prices, trading volumes, raw close prices, and
     latest unadjusted closing prices (for HOSE/HNX order lot sizing).
     """
     clean_syms = []
@@ -395,12 +405,13 @@ def fetch_multi_equity_dataset(
     if len(clean_syms) < 2:
         raise ValueError("Vui lòng chọn hoặc nhập ít nhất 2 mã cổ phiếu hợp lệ để tối ưu hóa danh mục.")
 
+    rng_req = (range_str or "1y").strip().lower()
     results: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
 
     with ThreadPoolExecutor(max_workers=min(8, len(clean_syms))) as pool:
         future_map = {
-            pool.submit(fetch_single_equity, sym, range_str, api_key): sym
+            pool.submit(fetch_single_equity, sym, rng_req, api_key): sym
             for sym in clean_syms
         }
         for fut in as_completed(future_map):
@@ -414,6 +425,8 @@ def fetch_multi_equity_dataset(
         raise ValueError(" | ".join(errors))
 
     adj_series_list = []
+    raw_series_list = []
+    vol_series_list = []
     latest_raw_prices: dict[str, float] = {}
 
     for sym in clean_syms:
@@ -426,18 +439,50 @@ def fetch_multi_equity_dataset(
         price_col = "adjustedClose" if (use_adjusted and "adjustedClose" in df_sym.columns) else "close"
         df_sym[price_col] = pd.to_numeric(df_sym[price_col], errors="coerce")
         df_sym["close"] = pd.to_numeric(df_sym["close"], errors="coerce")
+        if "volume" in df_sym.columns:
+            df_sym["volume"] = pd.to_numeric(df_sym["volume"], errors="coerce").fillna(0.0)
+        else:
+            df_sym["volume"] = 0.0
+
         df_sym = df_sym.dropna(subset=[price_col, "close"])
+        df_sym = df_sym.set_index("date")
 
         latest_raw_prices[sym] = float(df_sym["close"].iloc[-1])
 
-        s_price = df_sym.set_index("date")[price_col].rename(sym)
-        adj_series_list.append(s_price)
+        adj_series_list.append(df_sym[price_col].rename(sym))
+        raw_series_list.append(df_sym["close"].rename(sym))
+        vol_series_list.append(df_sym["volume"].rename(sym))
 
     df_aligned = pd.concat(adj_series_list, axis=1, join="inner").dropna(how="any").sort_index()
+    df_raw_aligned = pd.concat(raw_series_list, axis=1, join="inner").reindex(df_aligned.index)
+    df_vol_aligned = pd.concat(vol_series_list, axis=1, join="inner").reindex(df_aligned.index).fillna(0.0)
+
+    # Apply calendar window slicing for derived ranges ('2y' or 'ytd')
+    if len(df_aligned) > 10:
+        last_dt = df_aligned.index[-1]
+        if rng_req == "2y":
+            cutoff = last_dt - pd.Timedelta(days=730)
+            sliced = df_aligned[df_aligned.index >= cutoff]
+            if len(sliced) >= 10:
+                df_aligned = sliced
+                df_raw_aligned = df_raw_aligned.reindex(df_aligned.index)
+                df_vol_aligned = df_vol_aligned.reindex(df_aligned.index)
+        elif rng_req == "ytd":
+            cutoff = pd.Timestamp(year=last_dt.year, month=1, day=1)
+            sliced = df_aligned[df_aligned.index >= cutoff]
+            if len(sliced) >= 10:
+                df_aligned = sliced
+                df_raw_aligned = df_raw_aligned.reindex(df_aligned.index)
+                df_vol_aligned = df_vol_aligned.reindex(df_aligned.index)
+
     if len(df_aligned) < 10:
         raise ValueError(
             f"Số phiên giao dịch trùng khớp giữa các mã ({', '.join(clean_syms)}) quá ít ({len(df_aligned)} phiên)."
         )
+
+    df_aligned.index.name = "Date"
+    df_raw_aligned.index.name = "Date"
+    df_vol_aligned.index.name = "Date"
 
     from_date = str(df_aligned.index[0].date())
     to_date = str(df_aligned.index[-1].date())
@@ -445,11 +490,13 @@ def fetch_multi_equity_dataset(
     return {
         "symbols": clean_syms,
         "df_prices": df_aligned,
+        "df_raw_prices": df_raw_aligned,
+        "df_volumes": df_vol_aligned,
         "latest_raw_prices": latest_raw_prices,
         "from_date": from_date,
         "to_date": to_date,
         "sessions_count": len(df_aligned) - 1,
-        "range": range_str,
+        "range": rng_req,
         "use_adjusted": use_adjusted,
         "formula_version": "vnsc-adjusted-close-v1" if use_adjusted else "raw-close",
     }

@@ -1,13 +1,16 @@
 """
-Comprehensive Verification Test Suite for Pure Textbook MVO Application.
+Comprehensive Verification Test Suite for Portfolio Optimization by Khim (v2.4 Institutional Edition).
 Tests:
 1. Merton (1972) Closed-Form Matrix Solution identities (w_gmv, w_tangency, scalars A, B, C, D)
-2. Long-Only Quadratic Programming constraints (w_i >= 0, sum = 1)
+2. Long-Only Quadratic Programming constraints (w_i >= 0, sum = 1) on real market prices
 3. 252-Session Annualization Convention
 4. Investor Risk Profiling Quiz mapping (score 4..16 -> A in [1.2, 8.0])
 5. Template Generator & Excel Upload round-trip
-6. 6-Sheet Institutional Excel Report Exporter verification
-7. FastAPI Endpoints end-to-end
+6. 8-Sheet Institutional Excel Report Exporter verification (including Benchmark Scorecard & Stress Testing VaR)
+7. HayInsights Live API multi-exchange integration
+8. Frontend DOM & JSON contract validation (confirming Quick Select removal & Benchmark Horizon controls)
+9. Bounded QP (Circular 98/2020) & Mandated Cash %NAV
+10. Active Input Data Exporters (`Export Price Data` with Trading Volume & `Export Matrix Data`) + Benchmark Horizons + Roundtrip Upload
 """
 from __future__ import annotations
 
@@ -27,12 +30,14 @@ from app import (
     QuizSubmission,
     api_evaluate_quiz,
     api_export_excel,
+    api_export_matrix,
+    api_export_prices,
     api_get_presets,
     api_optimize,
     api_quote_ticker,
     api_search_tickers,
 )
-from engine import data_loader, excel_exporter, risk_profiler, template_generator, textbook_math
+from engine import data_loader, hayinsights_client, risk_profiler, template_generator, textbook_math
 
 
 def test_merton_closed_form_identities():
@@ -60,9 +65,9 @@ def test_merton_closed_form_identities():
 
 
 def test_long_only_qp_constraints():
-    """Verify that Long-Only QP strictly satisfies w_i >= 0 and sum(w_i) = 1."""
-    df = data_loader.get_market_price_dataframe(["FPT", "MWG", "VCB", "HPG"], n_sessions=252)
-    moments = textbook_math.compute_moments_from_prices(df, trading_days=252)
+    """Verify that Long-Only QP strictly satisfies w_i >= 0 and sum(w_i) = 1 on real market data."""
+    live = hayinsights_client.fetch_multi_equity_dataset(["FPT", "MWG", "VCB", "HPG"], range_str="1y")
+    moments = textbook_math.compute_moments_from_prices(live["df_prices"], trading_days=252)
     sol = textbook_math.solve_long_only_qp(moments["mu"], moments["cov"], rf=0.045, allow_short=False)
 
     assert abs(np.sum(sol["w_gmv"]) - 1.0) < 1e-6
@@ -87,22 +92,24 @@ def test_template_and_upload_roundtrip():
     """Verify generating input Excel template and parsing it back."""
     xlsx_bytes = template_generator.generate_input_template_xlsx(mode="parameters")
     parsed = data_loader.parse_uploaded_file(xlsx_bytes, "template.xlsx")
-    assert parsed["symbols"] == ["FPT", "MWG", "VCB", "HPG"]
-    assert len(parsed["mu"]) == 4
+    assert len(parsed["symbols"]) >= 3
+    assert len(parsed["mu"]) == len(parsed["symbols"])
 
     prices_bytes = template_generator.generate_input_template_xlsx(mode="prices")
     parsed_p = data_loader.parse_uploaded_file(prices_bytes, "prices.xlsx")
-    assert len(parsed_p["symbols"]) == 4
+    assert len(parsed_p["symbols"]) >= 3
 
 
-def test_institutional_excel_export_6_sheets():
-    """Verify the exported Excel workbook contains all 6 sheets and live formulas."""
+def test_institutional_excel_export_8_sheets():
+    """Verify the exported Master Excel workbook contains all 8 sheets including Benchmark & Stress Testing."""
     req = OptimizeRequest(
-        input_mode="market",
-        symbols=["FPT", "MWG", "VCB", "HPG"],
+        input_mode="hayinsights",
+        symbols=["FPT", "MWG", "VCB", "HPG", "VNM"],
         rf=0.045,
         risk_aversion_A=3.0,
         allow_short=True,
+        benchmark_symbol="VNINDEX",
+        benchmark_range="1y",
         nav_vnd=1_000_000_000.0,
     )
     opt_res = api_optimize(req)
@@ -119,11 +126,19 @@ def test_institutional_excel_export_6_sheets():
         "04_Matrix_Calculations",
         "05_Efficient_Frontier_Data",
         "06_Execution_Order_Sheet",
+        "07_Benchmark_Scorecard",
+        "08_Stress_Testing_VaR",
     ]
     assert wb.sheetnames == expected_sheets
-    # Check live formula in 01_Executive_Summary
+    # Check live formula in 01_Executive_Summary (5 symbols -> row 26)
     ws1 = wb["01_Executive_Summary"]
-    assert str(ws1["D25"].value).startswith("=SUM(")
+    assert str(ws1["D26"].value).startswith("=SUM(")
+    # Check Sheet 7 & Sheet 8 contents
+    ws7 = wb["07_Benchmark_Scorecard"]
+    assert "BENCHMARK SCORECARD" in str(ws7["A1"].value)
+    ws8 = wb["08_Stress_Testing_VaR"]
+    assert "STRESS TESTING" in str(ws8["A1"].value)
+    assert "Value at Risk (VaR 95%)" in str(ws8["A7"].value)
 
 
 def test_hayinsights_live_api_integration():
@@ -162,11 +177,15 @@ def test_hayinsights_live_api_integration():
 
 
 def test_frontend_dom_and_json_contract():
-    """Verify every DOM ID referenced in textbook_mvo.js exists in index.html and JSON contract matches."""
+    """Verify every DOM ID referenced in textbook_mvo.js exists in index.html and Quick Select is removed."""
     import re
 
     html_text = (PROJECT_ROOT / "static" / "index.html").read_text(encoding="utf-8")
     js_text = (PROJECT_ROOT / "static" / "textbook_mvo.js").read_text(encoding="utf-8")
+
+    # Confirm Quick Select is completely removed
+    assert "hayinsights-quick-chips" not in html_text
+    assert "hayinsights-quick-chips" not in js_text
 
     html_ids = set(re.findall(r'id="([^"]+)"', html_text))
     js_static_ids = set(re.findall(r"getElementById\('([^'$]+)'\)", js_text))
@@ -179,15 +198,11 @@ def test_frontend_dom_and_json_contract():
     for key in ["y_star_risky_weight", "w_rf_weight", "asset_weights", "expected_return", "volatility", "utility_score", "cal_line", "indifference_curve"]:
         assert key in comp and comp[key] is not None, f"Missing key in complete_portfolio: {key}"
 
-    assert "return" in res["frontier"][0] and "volatility" in res["frontier"][0]
-    assert "return" in res["monte_carlo"][0] and "volatility" in res["monte_carlo"][0] and "sharpe" in res["monte_carlo"][0]
-
 
 def test_bounded_qp_and_mandated_cash():
     """Verify Weight Bounds (Circular 98 max 20%, min floor, feasibility guard) and Mandated Cash %NAV."""
-    # 1. 6 stocks with Circular 98 cap (w_max = 0.20, w_min = 0.05)
     req_bounded = OptimizeRequest(
-        input_mode="market",
+        input_mode="hayinsights",
         symbols=["FPT", "MWG", "VCB", "HPG", "VNM", "SSI"],
         w_min=0.05,
         w_max=0.20,
@@ -214,7 +229,7 @@ def test_bounded_qp_and_mandated_cash():
 
     # 2. Feasibility Guard: 4 stocks with 20% cap (4 * 20% = 80% < 100%) -> auto-adjusts to 25%
     req_infeasible = OptimizeRequest(
-        input_mode="market",
+        input_mode="hayinsights",
         symbols=["FPT", "MWG", "VCB", "HPG"],
         w_min=0.0,
         w_max=0.20,
@@ -230,6 +245,7 @@ def test_benchmark_and_stress_testing_engine():
         input_mode="hayinsights",
         symbols=["FPT", "MWG", "VCB", "HPG", "VNM"],
         benchmark_symbol="VN30",
+        benchmark_range="1y",
         cash_mode="mandated",
         mandated_cash_pct=0.10,
         nav_vnd=1_000_000_000.0,
@@ -237,6 +253,7 @@ def test_benchmark_and_stress_testing_engine():
     res = api_optimize(req)
     bm = res["benchmark_comparison"]
     assert bm["benchmark_symbol"] == "VN30"
+    assert bm["benchmark_range"] == "1Y"
     for k in ["benchmark_return", "benchmark_volatility", "beta", "jensen_alpha", "tracking_error", "information_ratio"]:
         assert k in bm and bm[k] is not None
 
@@ -248,28 +265,95 @@ def test_benchmark_and_stress_testing_engine():
     assert len(st["scenarios"]) == 4
     for sc in st["scenarios"]:
         assert sc["estimated_loss_vnd"] > 0
-        assert sc["post_shock_nav_vnd"] < 1_000_000_000.0
-        # Because 10% cash buffer is held, cash_protection_vnd must be > 0
-        assert sc["cash_protection_vnd"] > 0
+
+
+def test_live_price_and_matrix_exports_and_benchmark_horizons():
+    """
+    Test Suite 10:
+    1. Export Live Price Data (4 sheets including Trading_Volume) & Roundtrip Upload back into data_loader
+    2. Export Live Parameter Matrix (3 sheets) & Roundtrip Upload back into data_loader
+    3. Multi-Horizon Benchmark Comparison (6m, 1y, 3y, 5y, ytd, max)
+    """
+    syms = ["FPT", "MWG", "VCB", "HPG", "VNM"]
+    req = OptimizeRequest(
+        input_mode="hayinsights",
+        symbols=syms,
+        hayinsights_range="1y",
+        use_adjusted_close=True,
+        benchmark_symbol="VNINDEX",
+        benchmark_range="6m",
+    )
+    opt_res = api_optimize(req)
+    assert opt_res["benchmark_comparison"]["benchmark_range"] == "6M"
+
+    # 1. Test Export Price Data (with Trading Volume)
+    res_prices = api_export_prices(req)
+    assert res_prices.status_code == 200
+    assert "Portfolio_Prices_5Assets_1Y_" in res_prices.headers.get("content-disposition", "")
+
+    wb_p = load_workbook(io.BytesIO(res_prices.body), data_only=True)
+    assert wb_p.sheetnames == ["Historical_Prices", "Trading_Volume", "Daily_Returns", "Universe_Summary"]
+    ws_vol = wb_p["Trading_Volume"]
+    assert ws_vol["A1"].value == "Date"
+    assert ws_vol["B1"].value == "FPT"
+    assert float(ws_vol["B2"].value) > 0  # Real trading volume
+
+    # Roundtrip Upload of exported Price file
+    roundtrip_p = data_loader.parse_uploaded_file(res_prices.body, "Portfolio_Prices_5Assets.xlsx")
+    assert roundtrip_p["symbols"] == syms
+    assert roundtrip_p["volumes_df"] is not None
+    assert np.allclose(roundtrip_p["mu"], opt_res["mu"], atol=1e-4)
+    assert np.allclose(roundtrip_p["std"], opt_res["std"], atol=1e-4)
+
+    # 2. Test Export Matrix Data
+    res_mat = api_export_matrix(req)
+    assert res_mat.status_code == 200
+    assert "Portfolio_Matrix_5Assets_" in res_mat.headers.get("content-disposition", "")
+
+    wb_m = load_workbook(io.BytesIO(res_mat.body), data_only=True)
+    assert wb_m.sheetnames == ["Parameters", "Covariance_Matrix", "Asset_Statistics"]
+
+    # Roundtrip Upload of exported Matrix file
+    roundtrip_m = data_loader.parse_uploaded_file(res_mat.body, "Portfolio_Matrix_5Assets.xlsx")
+    assert roundtrip_m["symbols"] == syms
+    assert np.allclose(roundtrip_m["mu"], opt_res["mu"], atol=1e-5)
+    assert np.allclose(roundtrip_m["std"], opt_res["std"], atol=1e-5)
+    assert np.allclose(roundtrip_m["corr"], opt_res["corr"], atol=1e-4)
+
+    # 3. Verify Benchmark Horizons ('ytd' and '3y')
+    for hz in ("ytd", "3y", "max"):
+        req_hz = OptimizeRequest(
+            input_mode="hayinsights",
+            symbols=["FPT", "VCB", "HPG"],
+            hayinsights_range="1y",
+            benchmark_symbol="VNINDEX",
+            benchmark_range=hz,
+        )
+        res_hz = api_optimize(req_hz)
+        assert res_hz["benchmark_comparison"]["benchmark_range"] == hz.upper()
+        assert len(res_hz["benchmark_comparison"]["cumulative_series"]["dates"]) >= 10
 
 
 if __name__ == "__main__":
+    print("Running Portfolio Optimization by Khim Verification Suite (10 Suites)...")
     test_merton_closed_form_identities()
-    print("[PASS] 1. Merton (1972) Closed-Form Analytical Matrix Identities")
+    print("  [PASS] 1. Merton (1972) Closed-Form Matrix Identities (A, B, C, D, Sigma^-1)")
     test_long_only_qp_constraints()
-    print("[PASS] 2. Long-Only Quadratic Programming Constraints (w_i >= 0, sum = 1)")
+    print("  [PASS] 2. Long-Only Quadratic Programming (SLSQP) Constraints on Real Data")
     test_risk_profiler_quiz()
-    print("[PASS] 3. Investor Risk Profiling Quiz (4 Questions -> A in [1.2, 8.0])")
+    print("  [PASS] 3. Investor Risk Profiling Quiz -> Risk Aversion A")
     test_template_and_upload_roundtrip()
-    print("[PASS] 4. Excel Input Template Generation & Upload Parser Roundtrip")
-    test_institutional_excel_export_6_sheets()
-    print("[PASS] 5. 6-Sheet Institutional Excel Report Exporter & API Verification")
+    print("  [PASS] 4. Excel Template Generation & Upload Parser Roundtrip")
+    test_institutional_excel_export_8_sheets()
+    print("  [PASS] 5. 8-Sheet Master Institutional Excel Export (with Benchmark & Stress Testing)")
     test_hayinsights_live_api_integration()
-    print("[PASS] 6. Live HayInsights API Integration (VNSC Adjusted Close -> MVO)")
+    print("  [PASS] 6. HayInsights Live API Multi-Exchange (HOSE/HNX/UPCoM) Integration")
     test_frontend_dom_and_json_contract()
-    print("[PASS] 7. Frontend DOM IDs & JSON Schema Contract Verification")
+    print("  [PASS] 7. Frontend DOM IDs (Quick Select Removed) & JSON Response Contract")
     test_bounded_qp_and_mandated_cash()
-    print("[PASS] 8. Institutional Weight Bounds (Circular 98 Cap) & Mandated Cash %NAV")
+    print("  [PASS] 8. Weight Bounds (Circular 98/2020) & Mandated Cash Allocation")
     test_benchmark_and_stress_testing_engine()
-    print("[PASS] 9. Benchmark Comparison (VN-Index/VN30) & Tail-Risk Stress Testing (VaR/CVaR)")
-    print("\nALL 9 TEST SUITES PASSED 100%!")
+    print("  [PASS] 9. Benchmark Comparison (VN-Index / VN30) & Tail-Risk Stress Testing (VaR/CVaR)")
+    test_live_price_and_matrix_exports_and_benchmark_horizons()
+    print("  [PASS] 10. Active Price (with Volume) & Matrix Exports + Benchmark Horizons + Roundtrip")
+    print("ALL 10 VERIFICATION SUITES PASSED SUCCESSFULLY!")

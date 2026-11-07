@@ -46,22 +46,22 @@
       <!-- Right Actions -->
       <div class="flex items-center gap-2">
         <div class="hidden md:flex items-center gap-1.5 mr-1">
-          <a href="/api/template/parameters" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5" title="Tải file Excel mẫu nhập Ma trận">
+          <button id="btn-export-matrix" type="button" onclick="exportCurrentMatrixData()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5" title="Xuất Ma trận Tham số E(R), Volatility, Tương quan và Hiệp phương sai của danh mục hiện tại">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Matrix Template</span>
-          </a>
-          <a href="/api/template/prices" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5" title="Tải file Excel mẫu nhập Chuỗi giá">
+            <span>Export Matrix Data</span>
+          </button>
+          <button id="btn-export-prices" type="button" onclick="exportCurrentPriceData()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5" title="Xuất Chuỗi giá lịch sử thực tế, Khối lượng giao dịch (Volume) và Lợi suất ngày của danh mục">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Price Template</span>
-          </a>
+            <span>Export Price Data</span>
+          </button>
         </div>
 
         <!-- Theme Toggle Button (Light / Dark) -->
@@ -234,14 +234,6 @@
               <input id="inp-hayinsights-symbols" type="hidden" value="FPT, MWG, VCB, HPG, VNM" />
             </div>
 
-            <!-- Quick Ticker Suggestions -->
-            <div class="space-y-1.5">
-              <div class="text-[11px]" style="color: var(--text-muted);">Quick select:</div>
-              <div id="hayinsights-quick-chips" class="flex flex-wrap gap-1">
-                <!-- Populated by JS -->
-              </div>
-            </div>
-
             <!-- Lookback Period & Adjusted Close -->
             <div class="pt-1 flex items-center justify-between gap-2 text-xs">
               <div class="flex items-center gap-2">
@@ -395,12 +387,25 @@
 
           <!-- Benchmark Selection & Short-Sales Switch -->
           <div class="grid grid-cols-1 gap-2.5 text-xs">
-            <div class="flex items-center justify-between p-2.5 swiss-subtle">
-              <span class="font-medium" style="color: var(--text-primary);">Benchmark Index</span>
-              <select id="sel-benchmark" onchange="runMVOOptimization()" class="swiss-input px-2 py-1 text-xs font-mono">
-                <option value="VNINDEX" selected>VN-Index (HOSE)</option>
-                <option value="VN30">VN30 Index (Bluechips)</option>
-              </select>
+            <div class="p-2.5 swiss-subtle space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-medium" style="color: var(--text-primary);">Benchmark Index</span>
+                <select id="sel-benchmark" onchange="onBenchmarkConfigChange(this.value, null)" class="swiss-input px-2 py-1 text-xs font-mono">
+                  <option value="VNINDEX" selected>VN-Index (HOSE)</option>
+                  <option value="VN30">VN30 Index (Bluechips)</option>
+                </select>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t" style="border-color: var(--border-color);">
+                <span class="text-[11px]" style="color: var(--text-secondary);">Benchmark Horizon</span>
+                <select id="sel-benchmark-horizon" onchange="onBenchmarkConfigChange(null, this.value)" class="swiss-input px-2 py-1 text-xs font-mono">
+                  <option value="6m">6M (6 Months)</option>
+                  <option value="1y" selected>1Y (1 Year)</option>
+                  <option value="3y">3Y (3 Years)</option>
+                  <option value="5y">5Y (5 Years)</option>
+                  <option value="ytd">YTD (Year-to-Date)</option>
+                  <option value="max">Max (Full History)</option>
+                </select>
+              </div>
             </div>
 
             <label class="flex items-center justify-between p-2.5 swiss-subtle cursor-pointer text-xs">
@@ -499,16 +504,42 @@
       </div>
 
       <!-- Tab Content 2: Benchmark Comparison (VN-Index / VN30) -->
-      <div id="tab-panel-benchmark" class="hidden p-4 sm:p-5 space-y-5">
+      <div id="tab-panel-benchmark" class="hidden p-4 sm:p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3 swiss-subtle text-xs">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold uppercase tracking-wider" style="color: var(--text-primary);">Benchmark Comparison Settings:</span>
+            <span id="lbl-benchmark-badge" class="text-[11px] font-mono px-2 py-0.5 rounded border" style="color: var(--accent); border-color: var(--border-color); background-color: var(--bg-card);">
+              vs. VN-Index (1Y)
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-1.5">
+              <span style="color: var(--text-secondary);">Index:</span>
+              <select id="sel-benchmark-tab" onchange="onBenchmarkConfigChange(this.value, null)" class="swiss-input px-2 py-1 text-xs font-mono">
+                <option value="VNINDEX" selected>VN-Index (HOSE)</option>
+                <option value="VN30">VN30 Index (Bluechips)</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span style="color: var(--text-secondary);">Time Horizon:</span>
+              <select id="sel-benchmark-horizon-tab" onchange="onBenchmarkConfigChange(null, this.value)" class="swiss-input px-2 py-1 text-xs font-mono">
+                <option value="6m">6M (6 Tháng)</option>
+                <option value="1y" selected>1Y (1 Năm)</option>
+                <option value="3y">3Y (3 Năm)</option>
+                <option value="5y">5Y (5 Năm)</option>
+                <option value="ytd">YTD (Từ đầu năm)</option>
+                <option value="max">Max (Toàn bộ)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           <div class="lg:col-span-5 space-y-2.5">
             <div class="flex items-center justify-between">
               <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
                 Relative Performance Scorecard (Alpha / Beta / IR)
               </h3>
-              <span id="lbl-benchmark-badge" class="text-[11px] font-mono px-2 py-0.5 rounded swiss-subtle" style="color: var(--accent);">
-                vs. VN-Index
-              </span>
             </div>
             <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
               <table class="w-full text-xs matrix-table font-mono" id="tbl-benchmark-scorecard">

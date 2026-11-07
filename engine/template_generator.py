@@ -1,8 +1,7 @@
 """
 Excel Input Template Generator for Textbook MVO Application.
-Generates a clean, ready-to-fill .xlsx file with two sheets:
-1. 'Parameters' (Textbook E(R), Std_Dev, and Correlation Matrix)
-2. 'Historical_Prices' (252-day daily closing prices)
+Uses live market data via `hayinsights_client` and `data_exporter` when available,
+or generates a clean structural blank template for manual user entry.
 """
 from __future__ import annotations
 
@@ -11,93 +10,73 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from engine import data_loader
+from engine import data_exporter, hayinsights_client, textbook_math
 
 
 def generate_input_template_xlsx(mode: str = "parameters") -> bytes:
-    """Create a well-formatted Excel input template."""
-    wb = Workbook()
+    """Create a well-formatted Excel input template using live market data if available."""
+    default_syms = ["FPT", "MWG", "VCB", "HPG", "VNM"]
+    try:
+        live = hayinsights_client.fetch_multi_equity_dataset(
+            symbols=default_syms,
+            range_str="1y",
+            use_adjusted=True,
+        )
+        moments = textbook_math.compute_moments_from_prices(live["df_prices"], trading_days=252)
+        meta = {
+            "source": "HayInsights Live API (Finhay / VNSC)",
+            "range": live["range"],
+            "from_date": live["from_date"],
+            "to_date": live["to_date"],
+            "formula_version": live["formula_version"],
+        }
+        if mode == "prices":
+            return data_exporter.export_live_price_dataset_xlsx(
+                symbols=live["symbols"],
+                df_prices=live["df_prices"],
+                df_volumes=live.get("df_volumes"),
+                daily_returns_df=moments.get("daily_returns_df"),
+                latest_prices=live["latest_raw_prices"],
+                data_meta=meta,
+            )
+        else:
+            return data_exporter.export_live_parameter_matrix_xlsx(
+                symbols=moments["symbols"],
+                mu=moments["mu"],
+                std=moments["std"],
+                corr=moments["corr"],
+                cov=moments["cov"],
+                latest_prices=live["latest_raw_prices"],
+                rf=0.045,
+                data_meta=meta,
+            )
+    except Exception:
+        # Clean structural blank template when offline
+        wb = Workbook()
+        header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+        header_font = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
+        thin_border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1"),
+        )
+        ws = wb.active
+        if mode == "prices":
+            ws.title = "Historical_Prices"
+            headers = ["Date", "TICKER_1", "TICKER_2", "TICKER_3"]
+        else:
+            ws.title = "Parameters"
+            headers = ["Symbol", "Expected_Return", "Std_Dev", "Latest_Price", "TICKER_1", "TICKER_2", "TICKER_3"]
 
-    header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
-    header_font = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
-    body_font = Font(name="Segoe UI", size=10, color="1E293B")
-    note_font = Font(name="Segoe UI", size=9, italic=True, color="475569")
-    thin_border = Border(
-        left=Side(style="thin", color="CBD5E1"),
-        right=Side(style="thin", color="CBD5E1"),
-        top=Side(style="thin", color="CBD5E1"),
-        bottom=Side(style="thin", color="CBD5E1"),
-    )
+        for col_idx, h in enumerate(headers, start=1):
+            c = ws.cell(row=1, column=col_idx, value=h)
+            c.fill = header_fill
+            c.font = header_font
+            c.alignment = Alignment(horizontal="center")
+            c.border = thin_border
+            ws.column_dimensions[get_column_letter(col_idx)].width = 16
 
-    # Sheet 1: Parameters (Textbook Matrix Format)
-    ws_param = wb.active
-    ws_param.title = "Parameters" if mode == "parameters" else "Manual_Params"
-
-    sample_rows = [
-        ("FPT", 0.240, 0.220, [1.00, 0.42, 0.35, 0.38]),
-        ("MWG", 0.165, 0.285, [0.42, 1.00, 0.40, 0.46]),
-        ("VCB", 0.135, 0.180, [0.35, 0.40, 1.00, 0.32]),
-        ("HPG", 0.175, 0.275, [0.38, 0.46, 0.32, 1.00]),
-    ]
-    headers = ["Symbol", "Expected_Return", "Std_Dev", "FPT", "MWG", "VCB", "HPG"]
-
-    for col_idx, h in enumerate(headers, start=1):
-        cell = ws_param.cell(row=1, column=col_idx, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        ws_param.column_dimensions[get_column_letter(col_idx)].width = 16
-
-    for r_idx, (sym, er, std, corrs) in enumerate(sample_rows, start=2):
-        ws_param.cell(row=r_idx, column=1, value=sym).font = Font(name="Segoe UI", size=10, bold=True)
-        c_er = ws_param.cell(row=r_idx, column=2, value=er)
-        c_er.number_format = "0.00%"
-        c_er.font = body_font
-
-        c_std = ws_param.cell(row=r_idx, column=3, value=std)
-        c_std.number_format = "0.00%"
-        c_std.font = body_font
-
-        for c_i, val in enumerate(corrs, start=4):
-            c_corr = ws_param.cell(row=r_idx, column=c_i, value=val)
-            c_corr.number_format = "0.00"
-            c_corr.font = body_font
-
-        for c_i in range(1, len(headers) + 1):
-            ws_param.cell(row=r_idx, column=c_i).border = thin_border
-
-    ws_param.cell(
-        row=7,
-        column=1,
-        value="Hướng dẫn: Nhập mã CP ở cột Symbol, Expected_Return và Std_Dev (dạng thập phân 0.18 hoặc 18%), các cột tiếp theo là Ma trận tương quan đối xứng (đường chéo = 1.00).",
-    ).font = note_font
-
-    # Sheet 2: Historical Prices (252 sessions)
-    ws_prices = wb.create_sheet(title="Prices" if mode == "prices" else "Historical_Prices")
-    df_sample = data_loader.get_market_price_dataframe(["FPT", "MWG", "VCB", "HPG"], n_sessions=60)
-
-    price_headers = ["Date"] + list(df_sample.columns)
-    for col_idx, h in enumerate(price_headers, start=1):
-        cell = ws_prices.cell(row=1, column=col_idx, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-        ws_prices.column_dimensions[get_column_letter(col_idx)].width = 15
-
-    for r_idx, (dt, row_vals) in enumerate(df_sample.iterrows(), start=2):
-        c_dt = ws_prices.cell(row=r_idx, column=1, value=dt.strftime("%Y-%m-%d"))
-        c_dt.font = body_font
-        c_dt.border = thin_border
-        for c_i, sym in enumerate(df_sample.columns, start=2):
-            c_p = ws_prices.cell(row=r_idx, column=c_i, value=float(row_vals[sym]))
-            c_p.number_format = "#,##0"
-            c_p.font = body_font
-            c_p.border = thin_border
-
-    # Put the requested mode sheet first
-    if mode == "prices":
-        wb._sheets = [ws_prices, ws_param]
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()

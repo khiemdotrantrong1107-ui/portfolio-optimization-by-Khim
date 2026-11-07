@@ -10,12 +10,6 @@ let dropdownHighlightIdx = -1;
 let currentDropdownResults = [];
 let lastAnalysisData = null;
 
-const HAYINSIGHTS_QUICK_TICKERS = [
-  'FPT', 'MWG', 'VCB', 'HPG', 'VNM', 'SSI', 'TCB', 'ACB', 'MBB', 'CTG',
-  'BID', 'STB', 'VCI', 'VND', 'DGC', 'GAS', 'REE', 'GMD', 'PNJ', 'PVD',
-  'PVS', 'BSR', 'VHM', 'VIC', 'KDH', 'NLG', 'VHC', 'CTD', 'HHV', 'KBC'
-];
-
 let manualState = {
   symbols: ['FPT', 'MWG', 'VCB', 'HPG'],
   expected_returns: [0.24, 0.165, 0.135, 0.175],
@@ -253,7 +247,6 @@ function syncBasketUI() {
   const cntLbl = document.getElementById('lbl-basket-count');
   if (cntLbl) cntLbl.textContent = selectedHayTickers.length;
   renderSelectedTickerPills();
-  renderHayInsightsChips();
   updateAssetCountBadge();
 }
 
@@ -497,32 +490,6 @@ function scrollDropdownToHighlight() {
   if (item) item.scrollIntoView({ block: 'nearest' });
 }
 
-function renderHayInsightsChips() {
-  const container = document.getElementById('hayinsights-quick-chips');
-  if (!container) return;
-  const activeSyms = getHayInsightsSymbolList();
-  container.innerHTML = '';
-
-  HAYINSIGHTS_QUICK_TICKERS.forEach(sym => {
-    const isActive = activeSyms.includes(sym);
-    const meta = tickerMetaMap[sym];
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.title = meta ? `${sym} — ${meta.name} (${meta.sector})` : sym;
-    if (isActive) {
-      btn.className = 'px-2 py-0.5 rounded text-[11px] font-mono font-semibold btn-primary transition';
-    } else {
-      btn.className = 'px-2 py-0.5 rounded text-[11px] font-mono btn-outline transition';
-    }
-    btn.textContent = sym;
-    btn.onclick = () => {
-      if (selectedHayTickers.includes(sym)) removeTickerFromBasket(sym);
-      else addTickerToBasket(sym);
-    };
-    container.appendChild(btn);
-  });
-}
-
 function setInputMode(mode) {
   currentInputMode = mode === 'manual' ? 'manual' : 'hayinsights';
   const btnHay = document.getElementById('tab-mode-hayinsights');
@@ -703,6 +670,24 @@ async function submitRiskQuiz() {
   }
 }
 
+// --- Benchmark Horizon & Index Synchronization ---
+function onBenchmarkConfigChange(newSym, newHorizon) {
+  const selBmLeft = document.getElementById('sel-benchmark');
+  const selBmTab = document.getElementById('sel-benchmark-tab');
+  const selHorLeft = document.getElementById('sel-benchmark-horizon');
+  const selHorTab = document.getElementById('sel-benchmark-horizon-tab');
+
+  if (newSym) {
+    if (selBmLeft) selBmLeft.value = newSym;
+    if (selBmTab) selBmTab.value = newSym;
+  }
+  if (newHorizon) {
+    if (selHorLeft) selHorLeft.value = newHorizon;
+    if (selHorTab) selHorTab.value = newHorizon;
+  }
+  runMVOOptimization();
+}
+
 // --- MVO Request & Execution ---
 function buildRequestPayload() {
   const rf = (parseFloat(document.getElementById('inp-rf').value) || 4.5) / 100.0;
@@ -713,6 +698,7 @@ function buildRequestPayload() {
   const wMax = (parseFloat(document.getElementById('rng-w-max')?.value) || 100) / 100.0;
   const mandatedCashPct = (parseFloat(document.getElementById('inp-mandated-cash')?.value) || 0) / 100.0;
   const bmSym = document.getElementById('sel-benchmark')?.value || 'VNINDEX';
+  const bmRange = document.getElementById('sel-benchmark-horizon')?.value || '1y';
 
   const baseParams = {
     rf: rf,
@@ -723,6 +709,7 @@ function buildRequestPayload() {
     cash_mode: currentCashMode,
     mandated_cash_pct: mandatedCashPct,
     benchmark_symbol: bmSym,
+    benchmark_range: bmRange,
     nav_vnd: nav,
     n_monte_carlo: 2500
   };
@@ -1194,8 +1181,9 @@ function renderBenchmarkTab(data) {
   const badge = document.getElementById('lbl-benchmark-badge');
   if (!bm || !tbl) return;
 
+  const bmRangeTag = bm.benchmark_range || (data.benchmark_range || '1Y');
   if (badge) {
-    badge.textContent = `vs. ${bm.benchmark_symbol}`;
+    badge.textContent = `vs. ${bm.benchmark_symbol} (${bmRangeTag})`;
   }
 
   const spreadSign = (v, isPct = true) => {
@@ -1497,6 +1485,95 @@ function renderAlgebraStepByStep(data) {
   `;
 }
 
+function _getTodayDateTag() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+async function exportCurrentPriceData() {
+  const payload = buildRequestPayload();
+  const btn = document.getElementById('btn-export-prices');
+  const oldHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>Exporting Prices...</span>';
+  }
+
+  try {
+    const res = await fetch('/api/export-prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Error exporting price dataset');
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nAssets = payload.symbols ? payload.symbols.length : 0;
+    const winTag = (payload.hayinsights_range || '1Y').toUpperCase();
+    a.download = `Portfolio_Prices_${nAssets}Assets_${winTag}_${_getTodayDateTag()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Price Data Export Error: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+  }
+}
+
+async function exportCurrentMatrixData() {
+  const payload = buildRequestPayload();
+  const btn = document.getElementById('btn-export-matrix');
+  const oldHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>Exporting Matrix...</span>';
+  }
+
+  try {
+    const res = await fetch('/api/export-matrix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Error exporting parameter matrix');
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nAssets = payload.symbols ? payload.symbols.length : 0;
+    a.download = `Portfolio_Matrix_${nAssets}Assets_${_getTodayDateTag()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Matrix Data Export Error: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+  }
+}
+
 async function exportInstitutionalExcel() {
   const payload = buildRequestPayload();
   const btn = document.getElementById('btn-export-excel');
@@ -1517,7 +1594,7 @@ async function exportInstitutionalExcel() {
     const a = document.createElement('a');
     a.href = url;
     const modeTag = payload.allow_short ? 'ShortAllowed' : 'LongOnly';
-    a.download = `Portfolio_MVO_Report_${modeTag}.xlsx`;
+    a.download = `Portfolio_MVO_Report_${modeTag}_${_getTodayDateTag()}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();

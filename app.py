@@ -1,8 +1,10 @@
 """
 FastAPI Backend for Pure Textbook MVO & Institutional Portfolio Construction Workbench.
+100% Real Market Data & User Upload Architecture (Zero Synthetic Fallback).
 """
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +15,19 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from engine import benchmark_engine, data_loader, excel_exporter, hayinsights_client, risk_profiler, template_generator, textbook_math
+from engine import (
+    benchmark_engine,
+    data_exporter,
+    data_loader,
+    excel_exporter,
+    hayinsights_client,
+    risk_profiler,
+    template_generator,
+    textbook_math,
+)
 
 app = FastAPI(
-    title="Pure Textbook MVO & Institutional Workbench",
+    title="Portfolio Optimization by Khim — Institutional MVO Workbench",
     version="2.4.0",
     description="Hệ thống Tối ưu hóa Danh mục Đầu tư Mean-Variance (Markowitz 1952 - Merton 1972) chuẩn giáo trình đại học & quản lý quỹ định chế.",
 )
@@ -38,7 +49,7 @@ class QuizSubmission(BaseModel):
 
 
 class OptimizeRequest(BaseModel):
-    input_mode: str = "hayinsights"  # "hayinsights", "market", or "manual"
+    input_mode: str = "hayinsights"  # "hayinsights" or "manual"
     symbols: list[str] = ["FPT", "MWG", "VCB", "HPG", "VNM"]
     hayinsights_range: str = "1y"
     use_adjusted_close: bool = True
@@ -54,17 +65,18 @@ class OptimizeRequest(BaseModel):
     cash_mode: str = "bkm"  # "bkm" or "mandated"
     mandated_cash_pct: float = 0.10
     benchmark_symbol: str = "VNINDEX"  # "VNINDEX" or "VN30"
+    benchmark_range: str = "1y"  # "6m", "1y", "3y", "5y", "ytd", "max"
     nav_vnd: float = 1_000_000_000.0
     n_monte_carlo: int = 2500
 
 
 def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
     data_meta: dict[str, Any] = {
-        "source": "Chuỗi 252 phiên HOSE (Offline Preset)",
-        "range": "1y",
+        "source": "HayInsights Live API (Finhay / VNSC)",
+        "range": req.hayinsights_range or "1y",
         "from_date": None,
         "to_date": None,
-        "formula_version": "preset-calibrated",
+        "formula_version": "vnsc-adjusted-close-v1",
     }
 
     if req.input_mode == "manual" and req.expected_returns and req.std_devs and req.corr_matrix:
@@ -75,13 +87,17 @@ def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
             corr_matrix=req.corr_matrix,
             latest_prices=req.latest_prices,
         )
-        data_meta["source"] = "Ma trận Giáo trình / File Excel"
+        # Attach uploaded historical price/return series if matching symbols were uploaded
+        cached_up = data_loader.get_last_uploaded_dataset()
+        clean_req_syms = [s.strip().upper() for s in req.symbols]
+        if cached_up and cached_up.get("symbols") == clean_req_syms:
+            moments["prices_df"] = cached_up.get("df_prices")
+            moments["volumes_df"] = cached_up.get("df_volumes")
+            moments["daily_returns_df"] = cached_up.get("daily_returns_df")
+            moments["sessions_count"] = len(cached_up["daily_returns_df"]) if cached_up.get("daily_returns_df") is not None else 252
+        data_meta["source"] = "Ma trận Tham số / File Excel Người dùng"
         data_meta["formula_version"] = "manual-matrix"
-    elif req.input_mode == "hayinsights" or (
-        req.input_mode == "market"
-        and hayinsights_client.load_api_key()
-        and any(s.strip().upper() not in data_loader.STOCK_METADATA for s in req.symbols)
-    ):
+    else:
         live = hayinsights_client.fetch_multi_equity_dataset(
             symbols=req.symbols,
             range_str=req.hayinsights_range,
@@ -89,6 +105,7 @@ def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
         )
         moments = textbook_math.compute_moments_from_prices(live["df_prices"], trading_days=252)
         moments["latest_prices"] = live["latest_raw_prices"]
+        moments["volumes_df"] = live.get("df_volumes")
         data_meta = {
             "source": "HayInsights Live API (Finhay / VNSC)",
             "range": live["range"],
@@ -96,9 +113,6 @@ def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
             "to_date": live["to_date"],
             "formula_version": live["formula_version"],
         }
-    else:
-        df_prices = data_loader.get_market_price_dataframe(req.symbols, n_sessions=252)
-        moments = textbook_math.compute_moments_from_prices(df_prices, trading_days=252)
 
     symbols = moments["symbols"]
     n = len(symbols)
@@ -140,13 +154,29 @@ def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
         mandated_cash_weight=req.mandated_cash_pct,
     )
 
+    # Determine daily returns series for the requested Benchmark Time Horizon
+    bm_rng = (req.benchmark_range or req.hayinsights_range or "1y").strip().lower()
+    opt_rng = (req.hayinsights_range or "1y").strip().lower()
+    df_bm_rets = df_daily_rets
+
+    if req.input_mode != "manual" and bm_rng != opt_rng:
+        try:
+            live_bm = hayinsights_client.fetch_multi_equity_dataset(
+                symbols=symbols,
+                range_str=bm_rng,
+                use_adjusted=req.use_adjusted_close,
+            )
+            df_bm_rets = live_bm["df_prices"].pct_change().dropna(how="any")
+        except Exception:
+            df_bm_rets = df_daily_rets
+
     bm_comp = benchmark_engine.compute_benchmark_comparison(
-        df_asset_returns=df_daily_rets,
+        df_asset_returns=df_bm_rets,
         w_tangency=sol["w_tangency"],
         tangency_stats=sol["tangency_stats"],
         rf=req.rf,
         benchmark_symbol=req.benchmark_symbol,
-        range_str=req.hayinsights_range or "1y",
+        range_str=bm_rng,
     )
 
     stress_test = benchmark_engine.compute_stress_testing_and_var(
@@ -189,6 +219,7 @@ def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
         "cash_mode": comp["cash_mode"],
         "mandated_cash_pct": float(req.mandated_cash_pct),
         "benchmark_symbol": bm_comp["benchmark_symbol"],
+        "benchmark_range": bm_comp.get("benchmark_range", bm_rng.upper()),
         "trading_days": 252,
         "sessions_count": moments["sessions_count"],
         "rf": req.rf,
@@ -239,13 +270,9 @@ def health_check():
 
 @app.get("/api/presets")
 def api_get_presets():
-    stocks = [
-        {"symbol": k, **v}
-        for k, v in data_loader.STOCK_METADATA.items()
-    ]
     key = hayinsights_client.load_api_key()
     return {
-        "stocks": stocks,
+        "stocks": hayinsights_client.VN_TICKER_DIRECTORY[:10],
         "ticker_directory": hayinsights_client.VN_TICKER_DIRECTORY,
         "quiz_questions": risk_profiler.QUIZ_QUESTIONS,
         "trading_days_convention": 252,
@@ -318,13 +345,107 @@ def api_download_template(kind: str = "parameters"):
     )
 
 
+@app.post("/api/export-prices")
+def api_export_prices(req: OptimizeRequest):
+    """
+    Export the exact historical price series, trading volumes, and daily returns
+    for the currently selected portfolio symbols and time window.
+    """
+    try:
+        clean_syms = [s.strip().upper() for s in req.symbols if s.strip()]
+        cached_up = data_loader.get_last_uploaded_dataset()
+
+        if req.input_mode == "manual" and cached_up and cached_up.get("symbols") == clean_syms and cached_up.get("df_prices") is not None:
+            df_prices = cached_up["df_prices"]
+            df_volumes = cached_up.get("df_volumes")
+            daily_rets = cached_up.get("daily_returns_df")
+            latest_prices = cached_up.get("latest_prices", {})
+            win_tag = "Uploaded"
+            meta = {
+                "source": f"Uploaded Excel ({cached_up.get('filename', 'User File')})",
+                "range": "Custom",
+                "from_date": str(df_prices.index[0].date()) if hasattr(df_prices.index[0], "date") else str(df_prices.index[0])[:10],
+                "to_date": str(df_prices.index[-1].date()) if hasattr(df_prices.index[-1], "date") else str(df_prices.index[-1])[:10],
+                "formula_version": "user-uploaded-prices",
+            }
+        else:
+            win_str = req.hayinsights_range or "1y"
+            live = hayinsights_client.fetch_multi_equity_dataset(
+                symbols=clean_syms,
+                range_str=win_str,
+                use_adjusted=req.use_adjusted_close,
+            )
+            moments = textbook_math.compute_moments_from_prices(live["df_prices"], trading_days=252)
+            df_prices = live["df_prices"]
+            df_volumes = live.get("df_volumes")
+            daily_rets = moments.get("daily_returns_df")
+            latest_prices = live["latest_raw_prices"]
+            win_tag = win_str.upper()
+            meta = {
+                "source": "HayInsights Live API (Finhay / VNSC)",
+                "range": live["range"],
+                "from_date": live["from_date"],
+                "to_date": live["to_date"],
+                "formula_version": live["formula_version"],
+            }
+
+        xlsx_bytes = data_exporter.export_live_price_dataset_xlsx(
+            symbols=clean_syms,
+            df_prices=df_prices,
+            df_volumes=df_volumes,
+            daily_returns_df=daily_rets,
+            latest_prices=latest_prices,
+            data_meta=meta,
+        )
+        date_tag = datetime.now().strftime("%Y%m%d")
+        fname = f"Portfolio_Prices_{len(clean_syms)}Assets_{win_tag}_{date_tag}.xlsx"
+        return Response(
+            content=xlsx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/export-matrix")
+def api_export_matrix(req: OptimizeRequest):
+    """
+    Export the active portfolio's Expected Return vector E(R), Volatility vector σ,
+    Correlation Matrix P, and Covariance Matrix Σ.
+    """
+    try:
+        analysis = _build_full_analysis(req)
+        symbols = analysis["symbols"]
+        xlsx_bytes = data_exporter.export_live_parameter_matrix_xlsx(
+            symbols=symbols,
+            mu=analysis["mu"],
+            std=analysis["std"],
+            corr=analysis["corr"],
+            cov=analysis["cov"],
+            latest_prices=analysis.get("latest_prices"),
+            rf=analysis["rf"],
+            data_meta=analysis.get("data_meta"),
+        )
+        date_tag = datetime.now().strftime("%Y%m%d")
+        fname = f"Portfolio_Matrix_{len(symbols)}Assets_{date_tag}.xlsx"
+        return Response(
+            content=xlsx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/export-excel")
 def api_export_excel(req: OptimizeRequest):
     try:
         analysis = _build_full_analysis(req)
         xlsx_bytes = excel_exporter.export_mvo_institutional_workbook(analysis)
         mode_tag = "ShortAllowed" if req.allow_short else "LongOnly"
-        fname = f"Portfolio_MVO_Institutional_Report_{mode_tag}.xlsx"
+        date_tag = datetime.now().strftime("%Y%m%d")
+        fname = f"Portfolio_MVO_Institutional_Report_{mode_tag}_{date_tag}.xlsx"
         return Response(
             content=xlsx_bytes,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
