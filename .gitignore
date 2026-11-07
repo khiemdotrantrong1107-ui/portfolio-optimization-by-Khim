@@ -1,0 +1,21 @@
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.*
+HayAPI
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+env/
+venv/
+
+# Local Generated Reports & OS Artifacts
+*.xlsx
+*.csv
+.DS_Store
+Thumbs.db
