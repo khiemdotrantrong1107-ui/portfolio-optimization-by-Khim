@@ -8,3 +8,4 @@ curl_cffi>=0.7.0
 xlsxwriter>=3.2.0
 openpyxl>=3.1.2
 python-multipart>=0.0.9
+esprima>=4.0.1

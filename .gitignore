@@ -1,6 +1,7 @@
 # Environment & Secrets (NEVER COMMIT)
 .env
 .env.*
+!.env.example
 HayAPI
 
 # Python Bytecode & Cache
