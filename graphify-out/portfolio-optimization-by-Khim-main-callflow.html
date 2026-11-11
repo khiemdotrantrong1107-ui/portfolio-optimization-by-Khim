@@ -1,0 +1,2790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>portfolio-optimization-by-Khim-main — Complete Call Flow &amp; Architecture Documentation</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --warn: #fbbf24; --err: #f87171; --ok: #34d399;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2.4rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.7rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+h3 { font-size: 1.25rem; margin: 32px 0 12px; color: var(--accent); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px; color: var(--warn); }
+p { margin: 8px 0; color: var(--muted); }
+.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 32px; }
+.mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; position: relative; }
+.mermaid.is-enhanced { padding: 0; overflow: hidden; min-height: 260px; }
+.mermaid-viewport { padding: 54px 24px 24px; overflow: hidden; cursor: grab; touch-action: none; min-height: 260px; }
+.mermaid-viewport.is-dragging { cursor: grabbing; }
+.mermaid-viewport svg { max-width: none !important; height: auto; transform-origin: 0 0; transition: transform 120ms ease; }
+.mermaid-toolbar { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(15,23,42,0.92); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); }
+.mermaid-toolbar button, .mermaid-toolbar .zoom-level { height: 28px; min-width: 32px; border: 1px solid var(--border); border-radius: 6px; background: #1e293b; color: var(--text); font: 600 0.78rem system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; }
+.mermaid-toolbar button { cursor: pointer; }
+.mermaid-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+.mermaid-toolbar .zoom-level { min-width: 52px; color: var(--muted); background: transparent; }
+.call-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+.call-table th { background: #1a2744; color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); }
+.call-table td { padding: 8px 14px; border: 1px solid var(--border); vertical-align: top; }
+.call-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.tag-async { background: #7c3aed33; color: #a78bfa; }
+.tag-class { background: #05966933; color: var(--ok); }
+.tag-func { background: #2563eb33; color: var(--accent); }
+.tag-cmd { background: #d9770633; color: var(--warn); }
+.tag-endpoint { background: #dc262633; color: var(--err); }
+.tag-hook { background: #db277733; color: #f472b6; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin: 16px 0; }
+.arrow-chain { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: var(--accent); padding: 10px; background: rgba(56,189,248,0.06); border-radius: 6px; }
+code { font-family: 'Fira Code', 'Cascadia Code', monospace; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+ul, ol { margin: 8px 0 8px 24px; color: var(--muted); }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+.nav { position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; }
+.nav a { text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+@media (max-width: 768px) { .container { padding: 16px; } h1 { font-size: 1.8rem; } }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>portfolio-optimization-by-Khim-main — Complete Call Flow &amp; Architecture Documentation</h1>
+<p class="subtitle">Generated from graphify knowledge graph: 413 nodes, 1001 edges, 24 communities. Commit: unknown</p>
+
+<div class="nav">
+    <a href="#overview">Architecture Overview</a>
+    <a href="#extract-pipeline">Extraction Pipeline</a>
+    <a href="#build-graph">Graph Build</a>
+    <a href="#analysis-clustering">Analysis &amp; Clustering</a>
+    <a href="#outputs-docs">Outputs &amp; Docs</a>
+    <a href="#ingest-cache-update">Ingestion &amp; Updates</a>
+    <a href="#serve-api">Serving API</a>
+    <a href="#tests-fixtures">Tests &amp; Fixtures</a>
+    <a href="#renderyaml-key-sync">Renderyaml Key Sync</a>
+    <a href="#system-audit-engineering">System Audit Engineering</a>
+    <a href="#engine-managerpy-database">Engine Managerpy Database</a>
+    <a href="#readmemd-institutional-overview">Readmemd Institutional Overview</a>
+    <a href="#docs-readmemd-c-c">Docs Readmemd Các</a>
+</div>
+
+<!-- ====== Architecture Overview ====== -->
+<h2 id="overview">1. Architecture Overview</h2>
+
+<div class="mermaid">
+
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    EXTRACT_PIPELINE_5F350230("Extraction Pipeline<br/><small>10 nodes</small>")
+    class EXTRACT_PIPELINE_5F350230 module;
+    BUILD_GRAPH_321CBB04("Graph Build<br/><small>7 nodes</small>")
+    class BUILD_GRAPH_321CBB04 module;
+    ANALYSIS_CLUSTERING_C79796DA("Analysis &amp; Clustering<br/><small>53 nodes</small>")
+    class ANALYSIS_CLUSTERING_C79796DA module;
+    OUTPUTS_DOCS_ED82387C("Outputs &amp; Docs<br/><small>15 nodes</small>")
+    class OUTPUTS_DOCS_ED82387C module;
+    INGEST_CACHE_UPDATE_FF457338("Ingestion &amp; Updates<br/><small>13 nodes</small>")
+    class INGEST_CACHE_UPDATE_FF457338 module;
+    SERVE_API_35EC8E86("Serving API<br/><small>54 nodes</small>")
+    class SERVE_API_35EC8E86 module;
+    TESTS_FIXTURES_B84B1DCC("Tests &amp; Fixtures<br/><small>217 nodes</small>")
+    class TESTS_FIXTURES_B84B1DCC module;
+    RENDERYAML_KEY_SYNC_F3253C52("Renderyaml Key Sync<br/><small>14 nodes</small>")
+    class RENDERYAML_KEY_SYNC_F3253C52 module;
+    SYSTEM_AUDIT_ENGINEERING_570996A4("System Audit Engineering<br/><small>11 nodes</small>")
+    class SYSTEM_AUDIT_ENGINEERING_570996A4 module;
+    ENGINE_MANAGERPY_DATABASE_D51D33A0("Engine Managerpy Database<br/><small>8 nodes</small>")
+    class ENGINE_MANAGERPY_DATABASE_D51D33A0 module;
+    READMEMD_INSTITUTIONAL_OVERVIEW_4F6ACA5D("Readmemd Institutional Overview<br/><small>7 nodes</small>")
+    class READMEMD_INSTITUTIONAL_OVERVIEW_4F6ACA5D module;
+    DOCS_READMEMD_C_C_B14EC2B6("Docs Readmemd Các<br/><small>4 nodes</small>")
+    class DOCS_READMEMD_C_C_B14EC2B6 module;
+    SERVE_API_35EC8E86 -->|imports x30| TESTS_FIXTURES_B84B1DCC
+    TESTS_FIXTURES_B84B1DCC -->|imports x28| ANALYSIS_CLUSTERING_C79796DA
+    ANALYSIS_CLUSTERING_C79796DA -->|calls x23| TESTS_FIXTURES_B84B1DCC
+    SERVE_API_35EC8E86 -->|calls x21| ANALYSIS_CLUSTERING_C79796DA
+    TESTS_FIXTURES_B84B1DCC -->|references x21| SERVE_API_35EC8E86
+    TESTS_FIXTURES_B84B1DCC -->|calls x15| OUTPUTS_DOCS_ED82387C
+    ANALYSIS_CLUSTERING_C79796DA -->|calls x12| SERVE_API_35EC8E86
+    SYSTEM_AUDIT_ENGINEERING_570996A4 -->|references x11| TESTS_FIXTURES_B84B1DCC
+    INGEST_CACHE_UPDATE_FF457338 -->|calls x10| TESTS_FIXTURES_B84B1DCC
+    SERVE_API_35EC8E86 -->|references x6| INGEST_CACHE_UPDATE_FF457338
+    TESTS_FIXTURES_B84B1DCC -->|calls x5| INGEST_CACHE_UPDATE_FF457338
+    ANALYSIS_CLUSTERING_C79796DA -->|calls x5| INGEST_CACHE_UPDATE_FF457338
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h4>Architecture Layers</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
+      <tr><td>Extraction Pipeline</td><td>10</td><td><code>8</code></td></tr><tr><td>Graph Build</td><td>7</td><td><code>13</code></td></tr><tr><td>Analysis &amp; Clustering</td><td>53</td><td><code>3, 21</code></td></tr><tr><td>Outputs &amp; Docs</td><td>15</td><td><code>18</code></td></tr><tr><td>Ingestion &amp; Updates</td><td>13</td><td><code>9, 11</code></td></tr><tr><td>Serving API</td><td>54</td><td><code>10, 19, 20, 15</code></td></tr><tr><td>Tests &amp; Fixtures</td><td>217</td><td><code>0, 5, 4, 1, 2, 12, 23, 17</code></td></tr><tr><td>Renderyaml Key Sync</td><td>14</td><td><code>6</code></td></tr><tr><td>System Audit Engineering</td><td>11</td><td><code>22</code></td></tr><tr><td>Engine Managerpy Database</td><td>8</td><td><code>14</code></td></tr><tr><td>Readmemd Institutional Overview</td><td>7</td><td><code>7</code></td></tr><tr><td>Docs Readmemd Các</td><td>4</td><td><code>16</code></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Core Flow</h4>
+    <div class="arrow-chain">Graph Build -&gt; Analysis &amp; Clustering -&gt; Tests &amp; Fixtures -&gt; Serving API -&gt; Ingestion &amp; Updates -&gt; Engine Managerpy Database -&gt; Extraction Pipeline</div>
+  </div>
+</div>
+<div class="grid">
+  <div class="card">
+    <h4>Graph Report Highlights</h4>
+    <ul>
+      <li>413 nodes · 1001 edges · 24 communities (21 shown, 3 thin omitted)</li>
+      <li>Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 186 edges (avg confidence: 0.95)</li>
+      <li>Token cost: 0 input · 0 output</li>
+      <li>1. `get_connection()` - 31 edges</li>
+      <li>2. `4B. Ma Trận Chỉnh Sửa Song Song Khi Thêm / Sửa / Xóa Tính Năng Ở Backend (Change-Impact Matrix)` - 27 edges</li>
+      <li>3. `_build_full_analysis()` - 27 edges</li>
+    </ul>
+  </div>
+</div>
+<hr>
+<!-- ====== 2. Extraction Pipeline ====== -->
+<h2 id="extract-pipeline">2. Extraction Pipeline</h2>
+<p>Extraction Pipeline groups implementation around backend, python, functions, engine, mostly in docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md, engine/db_manager.py. This section covers 10 nodes and 9 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Extraction Pipeline (10 nodes, 9 edges)
+    subgraph extract_pipeline_docs_01_BACKEND_PYTHON_FUNCTION_72bcfabc["docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md"]
+        docs_01_backend_python_functions_reference_01_ba_9a8d3668("01. Backend Python Functions Reference...<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+        docs_01_backend_python_functions_reference_5_eng_f795f8c4("5. engine/benchmark_engine.py — Benchma...<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+        docs_01_backend_python_functions_reference_cf6494ed("PYTHON FUNCTIONS REFERENCE.md<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+        docs_01_backend_python_functions_reference_4_eng_fe7c6934("4. engine/textbook_math.py — Markowitz...<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+        docs_01_backend_python_functions_reference_m_c_l_a4274453("Mục lục Phân hệ Backend<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+    end
+    subgraph extract_pipeline_engine_db_manager_py_6237bddb["engine/db_manager.py"]
+        engine_db_manager_rationale_859_ca1a3c57("Persist VNDirect DChart API index respo...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_906_9907a7e1("Retrieve benchmark closing point series...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_get_benchmark_series_from_db_2a952f79("series from db()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_upsert_market_index_daily_fe41d719("upsert_market_index_daily()<br/><small>engine/db_manager.py</small>")
+    end
+    engine_db_manager_py_series_adb6f7d9("Series")
+    engine_db_manager_get_benchmark_series_from_db_2a952f79 -->|references| engine_db_manager_py_series_adb6f7d9
+    docs_01_backend_python_functions_reference_cf6494ed -->|contains| docs_01_backend_python_functions_reference_01_ba_9a8d3668
+    docs_01_backend_python_functions_reference_01_ba_9a8d3668 -->|contains| docs_01_backend_python_functions_reference_4_eng_fe7c6934
+    docs_01_backend_python_functions_reference_01_ba_9a8d3668 -->|contains| docs_01_backend_python_functions_reference_5_eng_f795f8c4
+    docs_01_backend_python_functions_reference_01_ba_9a8d3668 -->|contains| docs_01_backend_python_functions_reference_m_c_l_a4274453
+    engine_db_manager_rationale_859_ca1a3c57 -->|explains| engine_db_manager_upsert_market_index_daily_fe41d719
+    engine_db_manager_rationale_906_9907a7e1 -->|explains| engine_db_manager_get_benchmark_series_from_db_2a952f79
+    docs_01_backend_python_functions_reference_5_eng_f795f8c4 -->|references| engine_db_manager_get_benchmark_series_from_db_2a952f79
+    docs_01_backend_python_functions_reference_5_eng_f795f8c4 -->|references| engine_db_manager_upsert_market_index_daily_fe41d719
+    class docs_01_backend_python_functions_reference_01_ba_9a8d3668 concept;
+    class docs_01_backend_python_functions_reference_5_eng_f795f8c4 concept;
+    class docs_01_backend_python_functions_reference_cf6494ed concept;
+    class docs_01_backend_python_functions_reference_4_eng_fe7c6934 concept;
+    class docs_01_backend_python_functions_reference_m_c_l_a4274453 concept;
+    class engine_db_manager_rationale_859_ca1a3c57 concept;
+    class engine_db_manager_rationale_906_9907a7e1 concept;
+    class engine_db_manager_get_benchmark_series_from_db_2a952f79 function;
+    class engine_db_manager_upsert_market_index_daily_fe41d719 function;
+    class engine_db_manager_py_series_adb6f7d9 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>get_benchmark_series_from_db()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>pandas</code></td>
+  <td>get_benchmark_series_from_db() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>upsert_market_index_daily()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>sync_benchmark_index_to_db()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>upsert_market_index_daily() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>Series</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Series node in project.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>01. Backend Python Functions Reference (Audited &amp; Verified v2.4)</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 01. Backend Python Functions Reference (Audited &amp; Verified v2.4).</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>4. engine/textbook_math.py — Markowitz &amp; Merton Quantitative Core</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 4. engine/textbook_math.py — Markowitz &amp; Merton Quantitative Core.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>5. engine/benchmark_engine.py — Benchmark Attribution &amp; Tail Risk</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 5. engine/benchmark_engine.py — Benchmark Attribution &amp; Tail Risk.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Mục lục Phân hệ Backend</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Mục lục Phân hệ Backend.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Persist VNDirect DChart API index response into fact_market_indices_daily.</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Persist VNDirect DChart API index response into fact_market_indices_daily..</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Retrieve benchmark closing point series from fact_market_indices_daily.</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Retrieve benchmark closing point series from fact_market_indices_daily..</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>engine/db_manager.py</code></td><td>4 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x4, references x3, explains x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 3. Graph Build ====== -->
+<h2 id="build-graph">3. Graph Build</h2>
+<p>Graph Build groups implementation around master, graphify, architecture, mapmd, mostly in docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md. This section covers 7 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Graph Build (7 nodes, 6 edges)
+    docs_00_master_architecture_and_graphify_map_00_53bfe062("00. Master Architecture &amp; Graphify Know...<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_3e4c5971("AND GRAPHIFY MAP.md<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_3_m_93e82bd3("3. Ma Trận Phụ Thuộc Giữa Các File Back...<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_1_t_56ebf7cd("1. Tổng Quan Kiến Trúc Hệ Thống (Master...<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_4_s_f786cea7("4. Sơ Đồ Thực Thể Liên Kết Cơ Sở Dữ Liệ...<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_5_t_4864c2ec("5. Đồ Thị Luồng Gọi Hàm Master (Master...<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_2_s_e6fa7c67("2. Số Liệu Đồ Thị Tri Thức Graphify (Gr...<br/><small>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small>")
+    docs_00_master_architecture_and_graphify_map_3e4c5971 -->|contains| docs_00_master_architecture_and_graphify_map_00_53bfe062
+    docs_00_master_architecture_and_graphify_map_00_53bfe062 -->|contains| docs_00_master_architecture_and_graphify_map_3_m_93e82bd3
+    docs_00_master_architecture_and_graphify_map_00_53bfe062 -->|contains| docs_00_master_architecture_and_graphify_map_1_t_56ebf7cd
+    docs_00_master_architecture_and_graphify_map_00_53bfe062 -->|contains| docs_00_master_architecture_and_graphify_map_4_s_f786cea7
+    docs_00_master_architecture_and_graphify_map_00_53bfe062 -->|contains| docs_00_master_architecture_and_graphify_map_5_t_4864c2ec
+    docs_00_master_architecture_and_graphify_map_00_53bfe062 -->|contains| docs_00_master_architecture_and_graphify_map_2_s_e6fa7c67
+    class docs_00_master_architecture_and_graphify_map_00_53bfe062 concept;
+    class docs_00_master_architecture_and_graphify_map_3e4c5971 concept;
+    class docs_00_master_architecture_and_graphify_map_3_m_93e82bd3 concept;
+    class docs_00_master_architecture_and_graphify_map_1_t_56ebf7cd concept;
+    class docs_00_master_architecture_and_graphify_map_4_s_f786cea7 concept;
+    class docs_00_master_architecture_and_graphify_map_5_t_4864c2ec concept;
+    class docs_00_master_architecture_and_graphify_map_2_s_e6fa7c67 concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>00. Master Architecture &amp; Graphify Knowledge Graph Map</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 00. Master Architecture &amp; Graphify Knowledge Graph Map.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>1. Tổng Quan Kiến Trúc Hệ Thống (Master System Architecture)</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 1. Tổng Quan Kiến Trúc Hệ Thống (Master System Architecture).</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>2. Số Liệu Đồ Thị Tri Thức Graphify (Graphify Knowledge Graph Metrics)</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 2. Số Liệu Đồ Thị Tri Thức Graphify (Graphify Knowledge Graph Metrics).</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>3. Ma Trận Phụ Thuộc Giữa Các File Backend (Inter-Module Dependency Matrix)</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 3. Ma Trận Phụ Thuộc Giữa Các File Backend (Inter-Module Dependency Matrix).</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>4. Sơ Đồ Thực Thể Liên Kết Cơ Sở Dữ Liệu SQLite V2.1 (Star-Schema ERD)</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 4. Sơ Đồ Thực Thể Liên Kết Cơ Sở Dữ Liệu SQLite V2.1 (Star-Schema ERD).</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>5. Đồ Thị Luồng Gọi Hàm Master (Master Call Graph)</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 5. Đồ Thị Luồng Gọi Hàm Master (Master Call Graph).</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</code></td><td>7 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x6. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 4. Analysis & Clustering ====== -->
+<h2 id="analysis-clustering">4. Analysis &amp; Clustering</h2>
+<p>Analysis &amp; Clustering groups implementation around engine, benchmark, enginepy, hayinsights, mostly in engine/benchmark_engine.py, engine/hayinsights_client.py, app.py. This section covers 53 nodes and 88 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Analysis &amp; Clustering (53 nodes, 88 edges)
+    subgraph analysis_clustering_engine_benchmark_engine_py_d6e69684["engine/benchmark_engine.py"]
+        engine_benchmark_engine_c55c2d93("benchmark_engine.py")
+        engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6("fetch_benchmark_series()<br/><small>engine/benchmark_engine.py</small>")
+        engine_benchmark_engine_compute_benchmark_compar_e945c3cf("compute benchmark comparison()<br/><small>engine/benchmark_engine.py</small>")
+        engine_benchmark_engine_sync_benchmark_index_to_10b544d7("sync_benchmark_index_to_db()<br/><small>engine/benchmark_engine.py</small>")
+        engine_benchmark_engine_slice_series_by_horizon_cfe0f7f2("_slice_series_by_horizon()<br/><small>engine/benchmark_engine.py</small>")
+        engine_benchmark_engine_generate_fallback_benchm_607f7949("fallback benchmark series()<br/><small>engine/benchmark_engine.py</small>")
+        engine_benchmark_engine_compute_stress_testing_a_8127ca53("testing and var()<br/><small>engine/benchmark_engine.py</small>")
+    end
+    subgraph analysis_clustering_External_generated_9ee0240b["External / generated"]
+        time_714eea0f("time")
+        json_05d97e6e("json")
+        pandas_add564b5("pandas")
+        math_7a488390("math")
+    end
+    subgraph analysis_clustering_engine_hayinsights_client_py_0cf237e9["engine/hayinsights_client.py"]
+        engine_hayinsights_client_84103449("hayinsights_client.py")
+        engine_hayinsights_client_fetch_equity_profile_a_9d50c470("profile and ratios()<br/><small>engine/hayinsights_client.py</small>")
+        engine_hayinsights_client_fetch_macro_data_61edf212("fetch_macro_data()<br/><small>engine/hayinsights_client.py</small>")
+        engine_hayinsights_client_generate_calibrated_eq_3a5a10e5("calibrated equity payload()<br/><small>engine/hayinsights_client.py</small>")
+    end
+    subgraph analysis_clustering_app_py_d95855d3["app.py"]
+        app_api_benchmark_attribution_8bf7d469("api_benchmark_attribution()<br/><small>app.py</small>")
+        app_benchmarkattributionrequest_2b8121be("BenchmarkAttributionRequest<br/><small>app.py</small>")
+    end
+    tests_test_textbook_engine_test_bloomberg_benchm_5e23c372("and fullscreen ux()<br/><small>tests/test_textbook_engine.py</small>")
+    engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6 -->|calls| time_714eea0f
+    engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6 -->|calls| engine_benchmark_engine_slice_series_by_horizon_cfe0f7f2
+    engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6 -->|calls| json_05d97e6e
+    engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6 -->|calls| pandas_add564b5
+    engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6 -->|calls| engine_benchmark_engine_generate_fallback_benchm_607f7949
+    engine_benchmark_engine_generate_fallback_benchm_607f7949 -->|calls| math_7a488390
+    engine_benchmark_engine_generate_fallback_benchm_607f7949 -->|calls| pandas_add564b5
+    app_api_benchmark_attribution_8bf7d469 -->|calls| engine_benchmark_engine_compute_benchmark_compar_e945c3cf
+    tests_test_textbook_engine_test_bloomberg_benchm_5e23c372 -->|calls| app_benchmarkattributionrequest_2b8121be
+    tests_test_textbook_engine_test_bloomberg_benchm_5e23c372 -->|calls| app_api_benchmark_attribution_8bf7d469
+    engine_benchmark_engine_compute_benchmark_compar_e945c3cf -->|calls| engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6
+    engine_benchmark_engine_compute_benchmark_compar_e945c3cf -->|calls| pandas_add564b5
+    engine_benchmark_engine_compute_benchmark_compar_e945c3cf -->|calls| engine_benchmark_engine_slice_series_by_horizon_cfe0f7f2
+    engine_benchmark_engine_compute_benchmark_compar_e945c3cf -->|calls| math_7a488390
+    engine_benchmark_engine_compute_stress_testing_a_8127ca53 -->|calls| math_7a488390
+    engine_benchmark_engine_slice_series_by_horizon_cfe0f7f2 -->|calls| pandas_add564b5
+    engine_benchmark_engine_sync_benchmark_index_to_10b544d7 -->|calls| time_714eea0f
+    engine_benchmark_engine_sync_benchmark_index_to_10b544d7 -->|calls| json_05d97e6e
+    engine_hayinsights_client_fetch_equity_profile_a_9d50c470 -->|calls| json_05d97e6e
+    engine_hayinsights_client_fetch_equity_profile_a_9d50c470 -->|calls| time_714eea0f
+    engine_hayinsights_client_fetch_macro_data_61edf212 -->|calls| json_05d97e6e
+    engine_hayinsights_client_fetch_macro_data_61edf212 -->|calls| time_714eea0f
+    engine_hayinsights_client_generate_calibrated_eq_3a5a10e5 -->|calls| pandas_add564b5
+    engine_benchmark_engine_c55c2d93 -->|imports| json_05d97e6e
+    %% Omitted for readability: 35 nodes, 6 edges
+    class engine_benchmark_engine_c55c2d93 module;
+    class engine_benchmark_engine_fetch_benchmark_series_4aa8a3a6 function;
+    class engine_benchmark_engine_compute_benchmark_compar_e945c3cf function;
+    class engine_benchmark_engine_sync_benchmark_index_to_10b544d7 function;
+    class engine_benchmark_engine_slice_series_by_horizon_cfe0f7f2 function;
+    class engine_benchmark_engine_generate_fallback_benchm_607f7949 function;
+    class engine_benchmark_engine_compute_stress_testing_a_8127ca53 function;
+    class time_714eea0f function;
+    class json_05d97e6e function;
+    class pandas_add564b5 function;
+    class math_7a488390 function;
+    class engine_hayinsights_client_84103449 entry;
+    class engine_hayinsights_client_fetch_equity_profile_a_9d50c470 function;
+    class engine_hayinsights_client_fetch_macro_data_61edf212 function;
+    class engine_hayinsights_client_generate_calibrated_eq_3a5a10e5 function;
+    class app_api_benchmark_attribution_8bf7d469 api;
+    class app_benchmarkattributionrequest_2b8121be klass;
+    class tests_test_textbook_engine_test_bloomberg_benchm_5e23c372 test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>fetch_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>compute benchmark comparison()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><code>_slice_series_by_horizon()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>fallback benchmark series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>json</code><br>+4 more</td>
+  <td>fetch_benchmark_series() node in engine/benchmark_engine.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>_generate_fallback_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><code>math</code><br><code>numpy</code><br><code>pandas</code></td>
+  <td>_generate_fallback_benchmark_series() node in engine/benchmark_engine.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>compute_benchmark_comparison()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_full_analysis()</code><br><small style="color:var(--muted)">app.py</small><br><code>api_benchmark_attribution()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><code>_slice_series_by_horizon()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>fetch_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>math</code><br>+2 more</td>
+  <td>compute_benchmark_comparison() node in engine/benchmark_engine.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>compute_stress_testing_and_var()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_full_analysis()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><code>math</code><br><code>numpy</code></td>
+  <td>Verifies imports, entry points, or version behavior.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>_slice_series_by_horizon()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>compute benchmark comparison()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>fetch_benchmark_series()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><code>pandas</code></td>
+  <td>_slice_series_by_horizon() node in engine/benchmark_engine.py.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>sync_benchmark_index_to_db()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_sync_market_index()</code><br><small style="color:var(--muted)">app.py</small><br><code>ingestion and upsert()</code><br><small style="color:var(--muted)">tests/test_database_integrity.py</small></td>
+  <td><code>json</code><br><code>time</code><br><code>upsert_market_index_daily()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>sync_benchmark_index_to_db() node in engine/benchmark_engine.py.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>fetch_equity_profile_and_ratios()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_sync_equity_to_db()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>json</code><br><code>load_api_key()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br>+2 more</td>
+  <td>fetch_equity_profile_and_ratios() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>fetch_macro_data()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_sync_macro_to_db()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><code>get_macro_series_from_db()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>json</code><br><code>load_api_key()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br>+3 more</td>
+  <td>fetch_macro_data() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>_generate_calibrated_equity_payload()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><code>numpy</code><br><code>pandas</code></td>
+  <td>_generate_calibrated_equity_payload() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>search_tickers()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_search_tickers()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>search_tickers() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>validate_and_quote_ticker()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_quote_ticker()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>validate_and_quote_ticker() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>benchmark_engine.py</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small><br><code>test_database_integrity.py</code><br><small style="color:var(--muted)">tests/test_database_integrity.py</small></td>
+  <td><code>curl_cffi</code><br><code>datetime</code><br><code>db_manager.py</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br>+7 more</td>
+  <td>Module file in engine/benchmark_engine.py.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>DataFrame</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DataFrame node in project.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>ndarray</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ndarray node in project.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>Series</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Series node in project.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>hayinsights_client.py</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small><br><code>template_generator.py</code><br><small style="color:var(--muted)">engine/template_generator.py</small><br><code>test_textbook_engine.py</code><br><small style="color:var(--muted)">tests/test_textbook_engine.py</small></td>
+  <td><code>concurrent_futures</code><br><code>db_manager.py</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>json</code><br>+9 more</td>
+  <td>Module file in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>Top 10 &quot;God Nodes&quot; (Các Nút Trung Tâm Có Độ Kết Nối Cao Nhất)</code><br><small style="color:var(--muted)">docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Top 10 &quot;God Nodes&quot; (Các Nút Trung Tâm Có Độ Kết Nối Cao Nhất).</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>Institutional Benchmark Comparison (VN-Index / VN30) &amp; Tail-Risk Stress Testing…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Institutional Benchmark Comparison (VN-Index / VN30) &amp; Tail-Risk Stress Testing….</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>Explicitly fetch and persist market index OHLCV from VNDirect DChart API into…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Explicitly fetch and persist market index OHLCV from VNDirect DChart API into….</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>Compute institutional relative performance metrics of Tangency Portfolio vs…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Compute institutional relative performance metrics of Tangency Portfolio vs….</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>Compute Tail-Risk Metrics (VaR 95%/99%, CVaR/Expected Shortfall, Maximum…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Compute Tail-Risk Metrics (VaR 95%/99%, CVaR/Expected Shortfall, Maximum….</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>Deterministic calibrated benchmark series if external index API is unreachable.…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Deterministic calibrated benchmark series if external index API is unreachable.….</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>Slice a DatetimeIndex Series or DataFrame according to horizon (&#x27;6m&#x27;, &#x27;1y&#x27;,…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Slice a DatetimeIndex Series or DataFrame according to horizon (&#x27;6m&#x27;, &#x27;1y&#x27;,….</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>Fetch daily closing levels for VNINDEX or VN30 from VNDirect DChart API or…</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Fetch daily closing levels for VNINDEX or VN30 from VNDirect DChart API or….</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>HayInsights (Finhay / VNSC) Live Market Data Connector &amp; Vietnam Equity…</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for HayInsights (Finhay / VNSC) Live Market Data Connector &amp; Vietnam Equity….</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>Search tickers by prefix (1-2+ characters), substring in symbol, company name,…</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Search tickers by prefix (1-2+ characters), substring in symbol, company name,….</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>Generate deterministic calibrated price series for a directory equity if API is…</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Generate deterministic calibrated price series for a directory equity if API is….</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>Verify a ticker symbol against HayInsights API and return its latest price,…</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Verify a ticker symbol against HayInsights API and return its latest price,….</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>engine/benchmark_engine.py</code></td><td>14 nodes</td></tr>
+<tr><td><code>engine/hayinsights_client.py</code></td><td>12 nodes</td></tr>
+<tr><td><code>app.py</code></td><td>5 nodes</td></tr>
+<tr><td><code>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</code></td><td>3 nodes</td></tr>
+<tr><td><code>tests/test_textbook_engine.py</code></td><td>2 nodes</td></tr>
+<tr><td><code>docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x23, references x21, explains x15, contains x13. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 5. Outputs & Docs ====== -->
+<h2 id="outputs-docs">5. Outputs &amp; Docs</h2>
+<p>Outputs &amp; Docs groups implementation around engine, data, exporterpy, export, mostly in engine/data_exporter.py, app.py, engine/data_loader.py. This section covers 15 nodes and 17 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Outputs &amp; Docs (15 nodes, 17 edges)
+    subgraph outputs_docs_engine_data_exporter_py_1fb3d6ec["engine/data_exporter.py"]
+        engine_data_exporter_export_live_parameter_matri_ebb03d5a("parameter matrix xlsx()<br/><small>engine/data_exporter.py</small>")
+        engine_data_exporter_export_live_price_dataset_x_e5366253("price dataset xlsx()<br/><small>engine/data_exporter.py</small>")
+        engine_data_exporter_common_styles_f4b26e89("_common_styles()<br/><small>engine/data_exporter.py</small>")
+        engine_data_exporter_rationale_274_ac36006b("Generate a 3-sheet Excel workbook conta...<br/><small>engine/data_exporter.py</small>")
+        engine_data_exporter_rationale_61_70efaa5e("Generate a 4-sheet Excel workbook conta...<br/><small>engine/data_exporter.py</small>")
+    end
+    subgraph outputs_docs_External_generated_a8e9d6d8["External / generated"]
+        engine_data_exporter_py_any_8d2b90ef("Any")
+        engine_data_loader_py_any_791d0a1f("Any")
+        engine_data_exporter_py_dataframe_51dfc617("DataFrame")
+        engine_data_exporter_py_ndarray_02bd2a76("ndarray")
+    end
+    subgraph outputs_docs_app_py_d5acbf19["app.py"]
+        app_api_export_prices_32dc589d("api_export_prices()<br/><small>app.py</small>")
+        app_rationale_493_f99b0f88("Export the exact historical price serie...<br/><small>app.py</small>")
+    end
+    subgraph outputs_docs_engine_data_loader_py_b1a6333a["engine/data_loader.py"]
+        engine_data_loader_get_last_uploaded_dataset_4fee8019("get_last_uploaded_dataset()<br/><small>engine/data_loader.py</small>")
+        engine_data_loader_rationale_24_0312858d("Return the most recently uploaded histo...<br/><small>engine/data_loader.py</small>")
+    end
+    docs_01_backend_python_functions_reference_6_10_114a4020("6–10. Các Module Nhập/Xuất Excel &amp; Khẩu...<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_b6f70dde("3.1. Rủi ro Luồng 1: Xung đột Trạng th...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    app_api_export_prices_32dc589d -->|calls| engine_data_loader_get_last_uploaded_dataset_4fee8019
+    app_api_export_prices_32dc589d -->|calls| engine_data_exporter_export_live_price_dataset_x_e5366253
+    engine_data_exporter_export_live_parameter_matri_ebb03d5a -->|calls| engine_data_exporter_common_styles_f4b26e89
+    engine_data_exporter_export_live_price_dataset_x_e5366253 -->|calls| engine_data_exporter_common_styles_f4b26e89
+    class engine_data_exporter_export_live_parameter_matri_ebb03d5a function;
+    class engine_data_exporter_export_live_price_dataset_x_e5366253 function;
+    class engine_data_exporter_common_styles_f4b26e89 function;
+    class engine_data_exporter_rationale_274_ac36006b concept;
+    class engine_data_exporter_rationale_61_70efaa5e concept;
+    class engine_data_exporter_py_any_8d2b90ef klass;
+    class engine_data_loader_py_any_791d0a1f klass;
+    class engine_data_exporter_py_dataframe_51dfc617 klass;
+    class engine_data_exporter_py_ndarray_02bd2a76 function;
+    class app_api_export_prices_32dc589d api;
+    class app_rationale_493_f99b0f88 concept;
+    class engine_data_loader_get_last_uploaded_dataset_4fee8019 function;
+    class engine_data_loader_rationale_24_0312858d concept;
+    class docs_01_backend_python_functions_reference_6_10_114a4020 concept;
+    class docs_04_system_audit_optimization_and_engineerin_b6f70dde concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>api_export_prices()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>and benchmark horizons()</code><br><small style="color:var(--muted)">tests/test_textbook_engine.py</small><br><code>test_textbook_engine.py</code><br><small style="color:var(--muted)">tests/test_textbook_engine.py</small></td>
+  <td><code>fetch_multi_equity_dataset()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>get_last_uploaded_dataset()</code><br><small style="color:var(--muted)">engine/data_loader.py</small><br><code>moments from prices()</code><br><small style="color:var(--muted)">engine/textbook_math.py</small><br>+1 more</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>_common_styles()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>parameter matrix xlsx()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small><br><code>price dataset xlsx()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_common_styles() node in engine/data_exporter.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>export_live_parameter_matrix_xlsx()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_export_matrix()</code><br><small style="color:var(--muted)">app.py</small><br><code>input template xlsx()</code><br><small style="color:var(--muted)">engine/template_generator.py</small></td>
+  <td><code>_common_styles()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>export_live_price_dataset_xlsx()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_export_prices()</code><br><small style="color:var(--muted)">app.py</small><br><code>input template xlsx()</code><br><small style="color:var(--muted)">engine/template_generator.py</small></td>
+  <td><code>_common_styles()</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>get_last_uploaded_dataset()</code><br><small style="color:var(--muted)">engine/data_loader.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_full_analysis()</code><br><small style="color:var(--muted)">app.py</small><br><code>api_benchmark_attribution()</code><br><small style="color:var(--muted)">app.py</small><br><code>api_export_prices()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>get_last_uploaded_dataset() node in engine/data_loader.py.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>DataFrame</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DataFrame node in project.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>ndarray</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ndarray node in project.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>6–10. Các Module Nhập/Xuất Excel &amp; Khẩu Vị Rủi Ro</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 6–10. Các Module Nhập/Xuất Excel &amp; Khẩu Vị Rủi Ro.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>3.1. Rủi ro Luồng #1: Xung đột Trạng thái Toàn cục `_LAST_UPLOADED_DATASET` (`engine/data_loader.py:L20`)</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 3.1. Rủi ro Luồng #1: Xung đột Trạng thái Toàn cục `_LAST_UPLOADED_DATASET` (`engine/data_loader.py:L20`).</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Export the exact historical price series, trading volumes, and daily returns…</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Export the exact historical price series, trading volumes, and daily returns….</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Generate a 3-sheet Excel workbook containing the active portfolio&#x27;s parameter…</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Generate a 3-sheet Excel workbook containing the active portfolio&#x27;s parameter….</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>Generate a 4-sheet Excel workbook containing the active portfolio&#x27;s historical…</code><br><small style="color:var(--muted)">engine/data_exporter.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Generate a 4-sheet Excel workbook containing the active portfolio&#x27;s historical….</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>Return the most recently uploaded historical price dataset if available.</code><br><small style="color:var(--muted)">engine/data_loader.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Return the most recently uploaded historical price dataset if available..</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>engine/data_exporter.py</code></td><td>5 nodes</td></tr>
+<tr><td><code>app.py</code></td><td>2 nodes</td></tr>
+<tr><td><code>engine/data_loader.py</code></td><td>2 nodes</td></tr>
+<tr><td><code>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</code></td><td>1 nodes</td></tr>
+<tr><td><code>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: references x9, calls x4, explains x4. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 6. Ingestion & Updates ====== -->
+<h2 id="ingest-cache-update">6. Ingestion &amp; Updates</h2>
+<p>Ingestion &amp; Updates groups implementation around managerpy, engine, series, ingest, mostly in engine/db_manager.py. This section covers 13 nodes and 15 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Ingestion &amp; Updates (13 nodes, 15 edges)
+    subgraph ingest_cache_update_engine_db_manager_py_ccd682fe["engine/db_manager.py"]
+        engine_db_manager_374d6757("db_manager.py")
+        engine_db_manager_upsert_equity_master_and_ratio_bf89b699("master and ratios()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_record_sync_log_42732471("record_sync_log()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_get_macro_series_from_db_acbf96ff("get_macro_series_from_db()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_ingest_uploaded_prices_df_66a24e7d("ingest_uploaded_prices_df()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_478_cdcdf645("Ingest Endpoint 1 payload (GET /openapi...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_1012_610116da("Ingest user-uploaded clean price and vo...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_1_7d3c7781("Local SQLite Quantitative Database &amp; Ze...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_600_3d5b861c("Record rate-limit quota and execution t...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_989_37c69f2e("Retrieve historical macroeconomic time...<br/><small>engine/db_manager.py</small>")
+    end
+    subgraph ingest_cache_update_External_generated_9d67cab5["External / generated"]
+        sqlite3_b54e393c("sqlite3")
+        engine_db_manager_py_any_23c6cb1f("Any")
+        engine_db_manager_py_dataframe_41224d72("DataFrame")
+    end
+    engine_db_manager_upsert_equity_master_and_ratio_bf89b699 -->|calls| engine_db_manager_record_sync_log_42732471
+    engine_db_manager_374d6757 -->|imports| sqlite3_b54e393c
+    class engine_db_manager_374d6757 module;
+    class engine_db_manager_upsert_equity_master_and_ratio_bf89b699 function;
+    class engine_db_manager_record_sync_log_42732471 function;
+    class engine_db_manager_get_macro_series_from_db_acbf96ff function;
+    class engine_db_manager_ingest_uploaded_prices_df_66a24e7d function;
+    class engine_db_manager_rationale_478_cdcdf645 concept;
+    class engine_db_manager_rationale_1012_610116da concept;
+    class engine_db_manager_rationale_1_7d3c7781 concept;
+    class engine_db_manager_rationale_600_3d5b861c concept;
+    class engine_db_manager_rationale_989_37c69f2e concept;
+    class sqlite3_b54e393c function;
+    class engine_db_manager_py_any_23c6cb1f klass;
+    class engine_db_manager_py_dataframe_41224d72 klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>get_macro_series_from_db()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_macro_data()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>get_macro_series_from_db() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>record_sync_log()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_macro_data()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>master and ratios()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>record_sync_log() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>upsert_equity_master_and_ratios()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>profile and ratios()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>record_sync_log()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>upsert_equity_master_and_ratios() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>db_manager.py</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small><br><code>benchmark_engine.py</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>data_loader.py</code><br><small style="color:var(--muted)">engine/data_loader.py</small><br>+2 more</td>
+  <td><code>datetime</code><br><code>json</code><br><code>numpy</code><br>+4 more</td>
+  <td>Module file in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Local SQLite Quantitative Database &amp; Zero-Quota Cache Manager for Portfolio…</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Local SQLite Quantitative Database &amp; Zero-Quota Cache Manager for Portfolio….</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Ingest Endpoint 1 payload (GET /openapi/v1/market/vn/equities/{symbol}) into…</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Ingest Endpoint 1 payload (GET /openapi/v1/market/vn/equities/{symbol}) into….</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Record rate-limit quota and execution timestamp into sys_sync_logs.</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Record rate-limit quota and execution timestamp into sys_sync_logs..</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Retrieve historical macroeconomic time series from fact_macro_time_series.</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Retrieve historical macroeconomic time series from fact_macro_time_series..</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>sqlite3</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>db_manager.py</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>sqlite3 node in project.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>ingest_uploaded_prices_df()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>parse_uploaded_file()</code><br><small style="color:var(--muted)">engine/data_loader.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>pandas</code></td>
+  <td>Turns a local path or remote repository into analysis context.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>DataFrame</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DataFrame node in project.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Ingest user-uploaded clean price and volume DataFrames into…</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Ingest user-uploaded clean price and volume DataFrames into….</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>engine/db_manager.py</code></td><td>10 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: explains x5, references x4, contains x4, calls x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 7. Serving API ====== -->
+<h2 id="serve-api">7. Serving API</h2>
+<p>Serving API groups implementation around api, apppy, engine, database, mostly in app.py, docs/02_DATABASE_AND_EXTERNAL_API_FLOWS.md, engine/db_manager.py. This section covers 54 nodes and 87 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Serving API (54 nodes, 87 edges)
+    subgraph serve_api_External_generated_a71e9f44["External / generated"]
+        fastapi_41a1373c("fastapi")
+        fastapi_middleware_cors_2b7bf539("fastapi_middleware_cors")
+        fastapi_responses_a75a9e69("fastapi_responses")
+        fastapi_staticfiles_ddb151bc("fastapi_staticfiles")
+        pydantic_196fee65("pydantic")
+    end
+    subgraph serve_api_app_py_d324f8fb["app.py"]
+        app_7d104347("app.py")
+        app_api_sync_equity_to_db_7dd4db38("api_sync_equity_to_db()<br/><small>app.py</small>")
+        app_api_get_presets_217e5ce9("api_get_presets()<br/><small>app.py</small>")
+        app_api_search_tickers_36c00a07("api_search_tickers()<br/><small>app.py</small>")
+        app_api_quote_ticker_3443161d("api_quote_ticker()<br/><small>app.py</small>")
+    end
+    subgraph serve_api_engine_db_manager_py_7de7ad1a["engine/db_manager.py"]
+        engine_db_manager_upsert_equity_prices_with_drif_966be61c("with drift check()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_get_cached_multi_equity_datase_37f49f42("multi equity dataset()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_get_single_equity_cached_paylo_9f7ec147("equity cached payload()<br/><small>engine/db_manager.py</small>")
+    end
+    subgraph serve_api_engine_hayinsights_client_py_84215f4a["engine/hayinsights_client.py"]
+        engine_hayinsights_client_fetch_single_equity_115f9ac8("fetch_single_equity()<br/><small>engine/hayinsights_client.py</small>")
+        engine_hayinsights_client_fetch_multi_equity_dat_f6d0395f("fetch_multi_equity_dataset()<br/><small>engine/hayinsights_client.py</small>")
+        engine_hayinsights_client_load_api_key_8e706388("load_api_key()<br/><small>engine/hayinsights_client.py</small>")
+    end
+    tests_test_database_integrity_test_corporate_act_43e363d2("action drift detection()<br/><small>tests/test_database_integrity.py</small>")
+    tests_test_textbook_engine_test_hayinsights_live_5dbd02bf("live api integration()<br/><small>tests/test_textbook_engine.py</small>")
+    app_api_sync_equity_to_db_7dd4db38 -->|calls| engine_hayinsights_client_fetch_single_equity_115f9ac8
+    tests_test_database_integrity_test_corporate_act_43e363d2 -->|calls| engine_db_manager_upsert_equity_prices_with_drif_966be61c
+    engine_hayinsights_client_fetch_multi_equity_dat_f6d0395f -->|calls| engine_db_manager_get_cached_multi_equity_datase_37f49f42
+    engine_hayinsights_client_fetch_single_equity_115f9ac8 -->|calls| engine_db_manager_get_single_equity_cached_paylo_9f7ec147
+    engine_hayinsights_client_fetch_single_equity_115f9ac8 -->|calls| engine_hayinsights_client_load_api_key_8e706388
+    engine_hayinsights_client_fetch_single_equity_115f9ac8 -->|calls| engine_db_manager_upsert_equity_prices_with_drif_966be61c
+    app_api_get_presets_217e5ce9 -->|calls| engine_hayinsights_client_load_api_key_8e706388
+    tests_test_textbook_engine_test_hayinsights_live_5dbd02bf -->|calls| app_api_get_presets_217e5ce9
+    tests_test_textbook_engine_test_hayinsights_live_5dbd02bf -->|calls| app_api_search_tickers_36c00a07
+    tests_test_textbook_engine_test_hayinsights_live_5dbd02bf -->|calls| app_api_quote_ticker_3443161d
+    app_7d104347 -->|imports| fastapi_41a1373c
+    app_7d104347 -->|imports| fastapi_middleware_cors_2b7bf539
+    app_7d104347 -->|imports| fastapi_responses_a75a9e69
+    app_7d104347 -->|imports| fastapi_staticfiles_ddb151bc
+    app_7d104347 -->|imports| pydantic_196fee65
+    %% Omitted for readability: 36 nodes, 0 edges
+    class fastapi_41a1373c api;
+    class fastapi_middleware_cors_2b7bf539 api;
+    class fastapi_responses_a75a9e69 api;
+    class fastapi_staticfiles_ddb151bc api;
+    class pydantic_196fee65 function;
+    class app_7d104347 module;
+    class app_api_sync_equity_to_db_7dd4db38 api;
+    class app_api_get_presets_217e5ce9 api;
+    class app_api_search_tickers_36c00a07 api;
+    class app_api_quote_ticker_3443161d api;
+    class engine_db_manager_upsert_equity_prices_with_drif_966be61c function;
+    class engine_db_manager_get_cached_multi_equity_datase_37f49f42 function;
+    class engine_db_manager_get_single_equity_cached_paylo_9f7ec147 function;
+    class engine_hayinsights_client_fetch_single_equity_115f9ac8 function;
+    class engine_hayinsights_client_fetch_multi_equity_dat_f6d0395f function;
+    class engine_hayinsights_client_load_api_key_8e706388 api;
+    class tests_test_database_integrity_test_corporate_act_43e363d2 test;
+    class tests_test_textbook_engine_test_hayinsights_live_5dbd02bf test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>add_no_cache_header()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>api_sync_equity_to_db()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>profile and ratios()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td>api_sync_equity_to_db() node in app.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>api_sync_macro_to_db()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>fetch_macro_data()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td>api_sync_macro_to_db() node in app.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>api_sync_market_index()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>sync_benchmark_index_to_db()</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small></td>
+  <td>api_sync_market_index() node in app.py.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>api_upload_excel()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>parse_uploaded_file()</code><br><small style="color:var(--muted)">engine/data_loader.py</small></td>
+  <td>api_upload_excel() node in app.py.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>test_textbook_engine.py</code><br><small style="color:var(--muted)">tests/test_textbook_engine.py</small></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">engine/__init__.py</small><br><code>benchmark_engine.py</code><br><small style="color:var(--muted)">engine/benchmark_engine.py</small><br><code>data_exporter.py</code><br><small style="color:var(--muted)">engine/data_exporter.py</small><br>+16 more</td>
+  <td>Module file in app.py.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>middleware</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>middleware node in project.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>post</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>post node in project.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>UploadFile</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>UploadFile node in project.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>FastAPI Backend for Pure Textbook MVO &amp; Institutional Portfolio Construction…</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for FastAPI Backend for Pure Textbook MVO &amp; Institutional Portfolio Construction….</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Synchronize a single equity&#x27;s prices and fundamental profile into local SQLite.</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Synchronize a single equity&#x27;s prices and fundamental profile into local SQLite..</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Synchronize market index OHLCV history (VNINDEX, VN30, HNX, UPCOM) from…</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Synchronize market index OHLCV history (VNINDEX, VN30, HNX, UPCOM) from….</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Synchronize macroeconomic rates (Gov Bond Yields) or exchange rates into…</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Synchronize macroeconomic rates (Gov Bond Yields) or exchange rates into….</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>fastapi</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>fastapi node in project.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>fastapi_middleware_cors</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>fastapi_middleware_cors node in project.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>fastapi_responses</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>fastapi_responses node in project.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>fastapi_staticfiles</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>fastapi_staticfiles node in project.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>pydantic</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>app.py</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>pydantic node in project.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>get_cached_multi_equity_dataset()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_multi_equity_dataset()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>pandas</code></td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>get_single_equity_cached_payload()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>fetch_multi_equity_dataset()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_full_analysis()</code><br><small style="color:var(--muted)">app.py</small><br><code>api_benchmark_attribution()</code><br><small style="color:var(--muted)">app.py</small><br><code>api_export_prices()</code><br><small style="color:var(--muted)">app.py</small><br>+2 more</td>
+  <td><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>multi equity dataset()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>pandas</code></td>
+  <td>fetch_multi_equity_dataset() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_sync_equity_to_db()</code><br><small style="color:var(--muted)">app.py</small><br><code>fetch_multi_equity_dataset()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>validate_and_quote_ticker()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><code>calibrated equity payload()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>equity cached payload()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>json</code><br>+4 more</td>
+  <td>fetch_single_equity() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>load_api_key()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td><code>api_get_presets()</code><br><small style="color:var(--muted)">app.py</small><br><code>fetch_macro_data()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br><code>fetch_single_equity()</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small><br>+1 more</td>
+  <td>No direct outbound edge</td>
+  <td>load_api_key() node in engine/hayinsights_client.py.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>3. engine/hayinsights_client.py — Market Data &amp; Macro API Client</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 3. engine/hayinsights_client.py — Market Data &amp; Macro API Client.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>3. Luồng Bộ Đệm 3 Tầng &amp; Quy Tắc Kiểm Tra Độ Tươi Mới (`min_sessions_map`)</code><br><small style="color:var(--muted)">docs/02_DATABASE_AND_EXTERNAL_API_FLOWS.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 3. Luồng Bộ Đệm 3 Tầng &amp; Quy Tắc Kiểm Tra Độ Tươi Mới (`min_sessions_map`).</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>1.3. Inefficiency #3: Truy vấn $N+1$, Tải lại toàn bộ khi thiếu 1 mã &amp; Lệch chuẩn Freshness Check giữa Single và Multi-Equity</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 1.3. Inefficiency #3: Truy vấn $N+1$, Tải lại toàn bộ khi thiếu 1 mã &amp; Lệch chuẩn Freshness Check giữa Single và Multi-Equity.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>3.2. Rủi ro Luồng #2: Hiệu ứng &quot;Cắt cụt Lịch sử&quot; (`Inner-Join Truncation`) khi giỏ có mã mới niêm yết hoặc mất thanh khoản</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 3.2. Rủi ro Luồng #2: Hiệu ứng &quot;Cắt cụt Lịch sử&quot; (`Inner-Join Truncation`) khi giỏ có mã mới niêm yết hoặc mất thanh khoản.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>Check if local DB has fresh historical prices for symbol. Returns simulated…</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Check if local DB has fresh historical prices for symbol. Returns simulated….</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>Retrieve aligned historical price, raw price, and volume DataFrames from…</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Retrieve aligned historical price, raw price, and volume DataFrames from….</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>Load HAYINSIGHTS_API_KEY from environment or local .env file.</code><br><small style="color:var(--muted)">engine/hayinsights_client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Load HAYINSIGHTS_API_KEY from environment or local .env file..</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>app.py</code></td><td>18 nodes</td></tr>
+<tr><td><code>docs/02_DATABASE_AND_EXTERNAL_API_FLOWS.md</code></td><td>7 nodes</td></tr>
+<tr><td><code>engine/db_manager.py</code></td><td>6 nodes</td></tr>
+<tr><td><code>engine/hayinsights_client.py</code></td><td>6 nodes</td></tr>
+<tr><td><code>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</code></td><td>2 nodes</td></tr>
+<tr><td><code>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</code></td><td>2 nodes</td></tr>
+<tr><td><code>tests/test_database_integrity.py</code></td><td>2 nodes</td></tr>
+<tr><td><code>tests/test_textbook_engine.py</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: references x40, contains x18, explains x13, calls x10. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 8. Tests & Fixtures ====== -->
+<h2 id="tests-fixtures">8. Tests &amp; Fixtures</h2>
+<p>Tests &amp; Fixtures groups implementation around textbook, test, mvojs, static, mostly in static/textbook_mvo.js, tests/test_textbook_engine.py, docs/03_FRONTEND_UI_SYNC_AND_TEST_PLAYBOOK.md. This section covers 217 nodes and 498 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Tests &amp; Fixtures (217 nodes, 498 edges)
+    subgraph tests_fixtures_static_textbook_mvo_js_a85b8942["static/textbook_mvo.js"]
+        static_textbook_mvo_binduievents_eea887cd("bindUIEvents()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_handletickersearchkeydown_d2a63ab3("handleTickerSearchKeydown()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_addmanualassetrow_243c28eb("addManualAssetRow()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_rendermanualtable_05feeb3f("renderManualTable()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_addtickertobasket_3b0deb41("addTickerToBasket()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_syncbasketui_74cb874f("syncBasketUI()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_fetchlivequoteforpill_47e12af2("fetchLiveQuoteForPill()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_applyquickbasket_12cc19e2("applyQuickBasket()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_runmvooptimization_7e90ceb7("runMVOOptimization()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_opentickerdropdown_a6c7558b("openTickerDropdown()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_closetickerdropdown_cef0dc87("closeTickerDropdown()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_exportcurrentpricedata_ade95425("exportCurrentPriceData()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_exportcurrentmatrixdata_03ac93a1("exportCurrentMatrixData()<br/><small>static/textbook_mvo.js</small>")
+        static_textbook_mvo_closechartfullscreen_6e3a9b67("closeChartFullscreen()<br/><small>static/textbook_mvo.js</small>")
+    end
+    engine_data_exporter_c3779a85("data_exporter.py")
+    engine_excel_exporter_302e33e4("excel_exporter.py")
+    engine_template_generator_57feef15("template_generator.py")
+    tests_test_textbook_engine_b7601acc("test_textbook_engine.py")
+    static_textbook_mvo_addmanualassetrow_243c28eb -->|calls| static_textbook_mvo_rendermanualtable_05feeb3f
+    static_textbook_mvo_addtickertobasket_3b0deb41 -->|calls| static_textbook_mvo_syncbasketui_74cb874f
+    static_textbook_mvo_addtickertobasket_3b0deb41 -->|calls| static_textbook_mvo_fetchlivequoteforpill_47e12af2
+    static_textbook_mvo_applyquickbasket_12cc19e2 -->|calls| static_textbook_mvo_syncbasketui_74cb874f
+    static_textbook_mvo_applyquickbasket_12cc19e2 -->|calls| static_textbook_mvo_runmvooptimization_7e90ceb7
+    static_textbook_mvo_binduievents_eea887cd -->|calls| static_textbook_mvo_runmvooptimization_7e90ceb7
+    static_textbook_mvo_binduievents_eea887cd -->|calls| static_textbook_mvo_opentickerdropdown_a6c7558b
+    static_textbook_mvo_binduievents_eea887cd -->|calls| static_textbook_mvo_closetickerdropdown_cef0dc87
+    static_textbook_mvo_binduievents_eea887cd -->|calls| static_textbook_mvo_exportcurrentpricedata_ade95425
+    static_textbook_mvo_binduievents_eea887cd -->|calls| static_textbook_mvo_exportcurrentmatrixdata_03ac93a1
+    static_textbook_mvo_binduievents_eea887cd -->|calls| static_textbook_mvo_closechartfullscreen_6e3a9b67
+    static_textbook_mvo_handletickersearchkeydown_d2a63ab3 -->|calls| static_textbook_mvo_opentickerdropdown_a6c7558b
+    static_textbook_mvo_handletickersearchkeydown_d2a63ab3 -->|calls| static_textbook_mvo_addtickertobasket_3b0deb41
+    static_textbook_mvo_handletickersearchkeydown_d2a63ab3 -->|calls| static_textbook_mvo_closetickerdropdown_cef0dc87
+    tests_test_textbook_engine_b7601acc -->|imports| engine_template_generator_57feef15
+    engine_template_generator_57feef15 -->|imports| engine_data_exporter_c3779a85
+    %% Omitted for readability: 199 nodes, 0 edges
+    class static_textbook_mvo_binduievents_eea887cd function;
+    class static_textbook_mvo_handletickersearchkeydown_d2a63ab3 function;
+    class static_textbook_mvo_addmanualassetrow_243c28eb async;
+    class static_textbook_mvo_rendermanualtable_05feeb3f function;
+    class static_textbook_mvo_addtickertobasket_3b0deb41 function;
+    class static_textbook_mvo_syncbasketui_74cb874f function;
+    class static_textbook_mvo_fetchlivequoteforpill_47e12af2 function;
+    class static_textbook_mvo_applyquickbasket_12cc19e2 function;
+    class static_textbook_mvo_runmvooptimization_7e90ceb7 function;
+    class static_textbook_mvo_opentickerdropdown_a6c7558b function;
+    class static_textbook_mvo_closetickerdropdown_cef0dc87 function;
+    class static_textbook_mvo_exportcurrentpricedata_ade95425 function;
+    class static_textbook_mvo_exportcurrentmatrixdata_03ac93a1 function;
+    class static_textbook_mvo_closechartfullscreen_6e3a9b67 function;
+    class engine_data_exporter_c3779a85 module;
+    class engine_excel_exporter_302e33e4 module;
+    class engine_template_generator_57feef15 module;
+    class tests_test_textbook_engine_b7601acc test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>export_mvo_institutional_workbook()</code><br><small style="color:var(--muted)">engine/excel_exporter.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_export_excel()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>_style_range()</code><br><small style="color:var(--muted)">engine/excel_exporter.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>_style_range() node in engine/excel_exporter.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>addManualAssetRow()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderManualTable()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>addManualAssetRow() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>addTickerToBasket()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>handleDropdownSelectTicker()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>handleTickerSearchKeydown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>fetchLiveQuoteForPill()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>syncBasketUI()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>addTickerToBasket() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>applyQuickBasket()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>runMVOOptimization()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>syncBasketUI()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>applyQuickBasket() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>closeChartFullscreen()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>closeTickerDropdown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>exportCurrentMatrixData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br>+7 more</td>
+  <td>bindUIEvents() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>buildRequestPayload()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>exportCurrentMatrixData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>exportCurrentPriceData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>exportInstitutionalExcel()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br>+1 more</td>
+  <td><code>getHayInsightsSymbolList()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>buildRequestPayload() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>closeChartFullscreen()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>No direct outbound edge</td>
+  <td>closeChartFullscreen() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>closeTickerDropdown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>handleTickerSearchKeydown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>No direct outbound edge</td>
+  <td>closeTickerDropdown() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>exportCurrentMatrixData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>_getTodayDateTag()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>buildRequestPayload()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>exportCurrentPriceData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>_getTodayDateTag()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>buildRequestPayload()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>exportInstitutionalExcel()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>_getTodayDateTag()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>buildRequestPayload()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>Exports documentation data to a target format.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>fetchLiveQuoteForPill()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>addTickerToBasket()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>renderSelectedTickerPills()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>fetchLiveQuoteForPill() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>fmtNum()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>renderAlgebraStepByStep()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderBenchmarkTab()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderKPISummary()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br>+4 more</td>
+  <td>No direct outbound edge</td>
+  <td>fmtNum() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>fmtPct()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>renderBenchmarkTab()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderKPISummary()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderMatricesTables()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br>+2 more</td>
+  <td>No direct outbound edge</td>
+  <td>fmtPct() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>getChartThemeTokens()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>renderBenchmarkTab()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderPlotlyFrontier()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderPlotlyWeights()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>isDarkMode()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>getChartThemeTokens() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>getHayInsightsSymbolList()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>buildRequestPayload()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>runBenchmarkAttributionRecalc()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>updateAssetCountBadge()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>No direct outbound edge</td>
+  <td>getHayInsightsSymbolList() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>_getTodayDateTag()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>exportCurrentMatrixData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>exportCurrentPriceData()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>exportInstitutionalExcel()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>No direct outbound edge</td>
+  <td>_getTodayDateTag() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>handleDropdownSelectTicker()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>handleTickerSearchKeydown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderTickerDropdownItems()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>addTickerToBasket()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>openTickerDropdown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>removeTickerFromBasket()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>handleDropdownSelectTicker() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>handleExcelUpload()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>renderManualTable()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>runMVOOptimization()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>setInputMode()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>handleExcelUpload() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>handleTickerSearchKeydown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>addTickerToBasket()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>closeTickerDropdown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>handleDropdownSelectTicker()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br>+3 more</td>
+  <td>handleTickerSearchKeydown() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>highlightMatch()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>renderTickerDropdownItems()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>No direct outbound edge</td>
+  <td>highlightMatch() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>initTheme()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>updateThemeIcons()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>initTheme() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>isDarkMode()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>getChartThemeTokens()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderPlotlyFrontier()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>updateThemeIcons()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>No direct outbound edge</td>
+  <td>isDarkMode() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>loadPresets()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderQuizQuestions()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>syncBasketUI()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>loadPresets() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>onBenchmarkConfigChange()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>runBenchmarkAttributionRecalc()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>runMVOOptimization()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>updateBenchmarkPillsUI()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>Reads, resolves, or persists project configuration.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>onWeightBoundSliderChange()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>toggleTT98Preset()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>runMVOOptimization()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>onWeightBoundSliderChange() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>openChartFullscreen()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderBenchmarkTab()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderPlotlyFrontier()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>renderPlotlyWeights()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>openChartFullscreen() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>openTickerDropdown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>bindUIEvents()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>handleDropdownSelectTicker()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>handleTickerSearchKeydown()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><code>renderTickerDropdownItems()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small><br><code>searchLocalTickerDirectory()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>openTickerDropdown() node in static/textbook_mvo.js.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>removeManualAssetRow()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>renderManualTable()</code><br><small style="color:var(--muted)">static/textbook_mvo.js</small></td>
+  <td>removeManualAssetRow() node in static/textbook_mvo.js.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>static/textbook_mvo.js</code></td><td>74 nodes</td></tr>
+<tr><td><code>tests/test_textbook_engine.py</code></td><td>22 nodes</td></tr>
+<tr><td><code>docs/03_FRONTEND_UI_SYNC_AND_TEST_PLAYBOOK.md</code></td><td>21 nodes</td></tr>
+<tr><td><code>tests/test_database_integrity.py</code></td><td>18 nodes</td></tr>
+<tr><td><code>engine/textbook_math.py</code></td><td>16 nodes</td></tr>
+<tr><td><code>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</code></td><td>12 nodes</td></tr>
+<tr><td><code>app.py</code></td><td>6 nodes</td></tr>
+<tr><td><code>engine/excel_exporter.py</code></td><td>5 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x165, contains x132, references x108, explains x40. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 9. Renderyaml Key Sync ====== -->
+<h2 id="renderyaml-key-sync">9. Renderyaml Key Sync</h2>
+<p>Renderyaml Key Sync groups implementation around renderyaml, key, sync, value, mostly in render.yaml. This section covers 14 nodes and 13 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Renderyaml Key Sync (14 nodes, 13 edges)
+    render_services_cd66a4f2("services<br/><small>render.yaml</small>")
+    render_services_envvars_df3d41d5("envVars<br/><small>render.yaml</small>")
+    render_37eca575("render.yaml")
+    render_services_type_32e992f5("type<br/><small>render.yaml</small>")
+    render_services_name_bed1c186("name<br/><small>render.yaml</small>")
+    render_services_runtime_986dda21("runtime<br/><small>render.yaml</small>")
+    render_services_region_dcf9305c("region<br/><small>render.yaml</small>")
+    render_services_plan_acd2c828("plan<br/><small>render.yaml</small>")
+    render_services_buildcommand_6ccc5665("buildCommand<br/><small>render.yaml</small>")
+    render_services_startcommand_23e19a08("startCommand<br/><small>render.yaml</small>")
+    render_services_healthcheckpath_09266f9d("healthCheckPath<br/><small>render.yaml</small>")
+    render_envvars_key_de63d8f5("key<br/><small>render.yaml</small>")
+    render_envvars_value_1856f724("value<br/><small>render.yaml</small>")
+    render_envvars_sync_60d5b62a("sync<br/><small>render.yaml</small>")
+    render_37eca575 -->|contains| render_services_cd66a4f2
+    render_services_cd66a4f2 -->|contains| render_services_envvars_df3d41d5
+    render_services_cd66a4f2 -->|contains| render_services_type_32e992f5
+    render_services_cd66a4f2 -->|contains| render_services_name_bed1c186
+    render_services_cd66a4f2 -->|contains| render_services_runtime_986dda21
+    render_services_cd66a4f2 -->|contains| render_services_region_dcf9305c
+    render_services_cd66a4f2 -->|contains| render_services_plan_acd2c828
+    render_services_cd66a4f2 -->|contains| render_services_buildcommand_6ccc5665
+    render_services_cd66a4f2 -->|contains| render_services_startcommand_23e19a08
+    render_services_cd66a4f2 -->|contains| render_services_healthcheckpath_09266f9d
+    render_services_envvars_df3d41d5 -->|contains| render_envvars_key_de63d8f5
+    render_services_envvars_df3d41d5 -->|contains| render_envvars_value_1856f724
+    render_services_envvars_df3d41d5 -->|contains| render_envvars_sync_60d5b62a
+    class render_services_cd66a4f2 function;
+    class render_services_envvars_df3d41d5 function;
+    class render_37eca575 function;
+    class render_services_type_32e992f5 function;
+    class render_services_name_bed1c186 function;
+    class render_services_runtime_986dda21 function;
+    class render_services_region_dcf9305c function;
+    class render_services_plan_acd2c828 function;
+    class render_services_buildcommand_6ccc5665 entry;
+    class render_services_startcommand_23e19a08 entry;
+    class render_services_healthcheckpath_09266f9d function;
+    class render_envvars_key_de63d8f5 function;
+    class render_envvars_value_1856f724 function;
+    class render_envvars_sync_60d5b62a function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>render.yaml</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>render.yaml node in render.yaml.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>key</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>key node in render.yaml.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>sync</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>sync node in render.yaml.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>value</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>value node in render.yaml.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>services</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>services node in render.yaml.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>buildCommand</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>buildCommand node in render.yaml.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>envVars</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>envVars node in render.yaml.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>healthCheckPath</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>healthCheckPath node in render.yaml.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>name</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>name node in render.yaml.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>plan</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>plan node in render.yaml.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>region</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>region node in render.yaml.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>runtime</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>runtime node in render.yaml.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>startCommand</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>startCommand node in render.yaml.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>type</code><br><small style="color:var(--muted)">render.yaml</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>type node in render.yaml.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>render.yaml</code></td><td>14 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x13. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 10. System Audit Engineering ====== -->
+<h2 id="system-audit-engineering">10. System Audit Engineering</h2>
+<p>System Audit Engineering groups implementation around system, audit, engineering, optimization, mostly in docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md. This section covers 11 nodes and 10 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: System Audit Engineering (11 nodes, 10 edges)
+    docs_04_system_audit_optimization_and_engineerin_789e883e("4A. Quy Trình 7 Bước Tích Hợp Một Funct...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_2ee9e130("Phần 4: Quy Trình Chuẩn (SOP) Tích Hợp...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_993e923f("AND ENGINEERING GUIDELINES.md<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_25889d46("04. Kiểm Toán Kiến Trúc Chuyên Sâu, Tối...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_b4243bb8("Bước 1: Xây dựng Hàm Tính toán tại Tầng...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_25fbd429("Bước 2: Kết nối Tầng Lưu trữ tại engin...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_bbef5b51("4C. 5 Quy Tắc Bất Biến ('5 Golden Invar...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_e32e9347("Bước 3: Mở Cổng Giao tiếp tại app.py<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_f1b8d983("Bước 5: Lưu Trạng thái &amp; Viết Hàm Rende...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_686b14df("Bước 6: Khai báo Phần tử Giao diện tại...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_506a7063("Bước 7: Kiểm thử Tự động &amp; Cập nhật Đồ...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_993e923f -->|contains| docs_04_system_audit_optimization_and_engineerin_25889d46
+    docs_04_system_audit_optimization_and_engineerin_25889d46 -->|contains| docs_04_system_audit_optimization_and_engineerin_2ee9e130
+    docs_04_system_audit_optimization_and_engineerin_789e883e -->|contains| docs_04_system_audit_optimization_and_engineerin_b4243bb8
+    docs_04_system_audit_optimization_and_engineerin_789e883e -->|contains| docs_04_system_audit_optimization_and_engineerin_25fbd429
+    docs_04_system_audit_optimization_and_engineerin_789e883e -->|contains| docs_04_system_audit_optimization_and_engineerin_e32e9347
+    docs_04_system_audit_optimization_and_engineerin_789e883e -->|contains| docs_04_system_audit_optimization_and_engineerin_f1b8d983
+    docs_04_system_audit_optimization_and_engineerin_789e883e -->|contains| docs_04_system_audit_optimization_and_engineerin_686b14df
+    docs_04_system_audit_optimization_and_engineerin_789e883e -->|contains| docs_04_system_audit_optimization_and_engineerin_506a7063
+    docs_04_system_audit_optimization_and_engineerin_2ee9e130 -->|contains| docs_04_system_audit_optimization_and_engineerin_789e883e
+    docs_04_system_audit_optimization_and_engineerin_2ee9e130 -->|contains| docs_04_system_audit_optimization_and_engineerin_bbef5b51
+    class docs_04_system_audit_optimization_and_engineerin_789e883e concept;
+    class docs_04_system_audit_optimization_and_engineerin_2ee9e130 concept;
+    class docs_04_system_audit_optimization_and_engineerin_993e923f concept;
+    class docs_04_system_audit_optimization_and_engineerin_25889d46 concept;
+    class docs_04_system_audit_optimization_and_engineerin_b4243bb8 concept;
+    class docs_04_system_audit_optimization_and_engineerin_25fbd429 concept;
+    class docs_04_system_audit_optimization_and_engineerin_bbef5b51 concept;
+    class docs_04_system_audit_optimization_and_engineerin_e32e9347 concept;
+    class docs_04_system_audit_optimization_and_engineerin_f1b8d983 concept;
+    class docs_04_system_audit_optimization_and_engineerin_686b14df concept;
+    class docs_04_system_audit_optimization_and_engineerin_506a7063 concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>04. Kiểm Toán Kiến Trúc Chuyên Sâu, Tối Ưu Hóa &amp; Quy Trình Chuẩn Phát Triển Hệ Thống (System Audit &amp; Engineering SOP)</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 04. Kiểm Toán Kiến Trúc Chuyên Sâu, Tối Ưu Hóa &amp; Quy Trình Chuẩn Phát Triển Hệ Thống (System Audit &amp; Engineering SOP).</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>4A. Quy Trình 7 Bước Tích Hợp Một Function Từ Backend Lên Frontend UI</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 4A. Quy Trình 7 Bước Tích Hợp Một Function Từ Backend Lên Frontend UI.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>4C. 5 Quy Tắc Bất Biến (&quot;5 Golden Invariants&quot;) Cần Tuân Thủ Tuyệt Đối</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 4C. 5 Quy Tắc Bất Biến (&quot;5 Golden Invariants&quot;) Cần Tuân Thủ Tuyệt Đối.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Bước 1: Xây dựng Hàm Tính toán tại Tầng `engine/*.py`</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Bước 1: Xây dựng Hàm Tính toán tại Tầng `engine/*.py`.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Bước 2: Kết nối Tầng Lưu trữ tại `engine/db_manager.py` (Nếu có lưu DB)</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Bước 2: Kết nối Tầng Lưu trữ tại `engine/db_manager.py` (Nếu có lưu DB).</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Bước 3: Mở Cổng Giao tiếp tại `app.py`</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Bước 3: Mở Cổng Giao tiếp tại `app.py`.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Bước 5: Lưu Trạng thái &amp; Viết Hàm Render tại `static/textbook_mvo.js`</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Bước 5: Lưu Trạng thái &amp; Viết Hàm Render tại `static/textbook_mvo.js`.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Bước 6: Khai báo Phần tử Giao diện tại `static/index.html`</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Bước 6: Khai báo Phần tử Giao diện tại `static/index.html`.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Bước 7: Kiểm thử Tự động &amp; Cập nhật Đồ thị Graphify</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Bước 7: Kiểm thử Tự động &amp; Cập nhật Đồ thị Graphify.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>Phần 4: Quy Trình Chuẩn (SOP) Tích Hợp &amp; Bảo Trì Hệ Thống Cho Tương Lai</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Phần 4: Quy Trình Chuẩn (SOP) Tích Hợp &amp; Bảo Trì Hệ Thống Cho Tương Lai.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</code></td><td>11 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x10. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 11. Engine Managerpy Database ====== -->
+<h2 id="engine-managerpy-database">11. Engine Managerpy Database</h2>
+<p>Engine Managerpy Database groups implementation around engine, managerpy, database, get, mostly in engine/db_manager.py, docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md, docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md. This section covers 8 nodes and 10 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Engine Managerpy Database (8 nodes, 10 edges)
+    subgraph engine_managerpy_database_engine_db_manager_py_c6e50a6b["engine/db_manager.py"]
+        engine_db_manager_get_database_summary_eca22f66("get_database_summary()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_seed_initial_data_c40c60b8("seed_initial_data()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_init_db_8f313cae("init_db()<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_279_d4a96e1f("Initialize database tables, indexes, an...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_1074_bc08d1bc("Retrieve full health, table counts, fil...<br/><small>engine/db_manager.py</small>")
+        engine_db_manager_rationale_293_748b4ab4("Seed initial reference directory and ba...<br/><small>engine/db_manager.py</small>")
+    end
+    docs_01_backend_python_functions_reference_2_eng_57fd3013("2. engine/db_manager.py — SQLite Star-S...<br/><small>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small>")
+    docs_04_system_audit_optimization_and_engineerin_8c529695("1.6. Redundancy 6: Gọi init_db() (ch...<br/><small>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small>")
+    engine_db_manager_get_database_summary_eca22f66 -->|calls| engine_db_manager_init_db_8f313cae
+    engine_db_manager_seed_initial_data_c40c60b8 -->|calls| engine_db_manager_init_db_8f313cae
+    class engine_db_manager_get_database_summary_eca22f66 function;
+    class engine_db_manager_seed_initial_data_c40c60b8 function;
+    class engine_db_manager_init_db_8f313cae function;
+    class engine_db_manager_rationale_279_d4a96e1f concept;
+    class engine_db_manager_rationale_1074_bc08d1bc concept;
+    class engine_db_manager_rationale_293_748b4ab4 concept;
+    class docs_01_backend_python_functions_reference_2_eng_57fd3013 concept;
+    class docs_04_system_audit_optimization_and_engineerin_8c529695 concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>get_database_summary()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>api_get_db_stats()</code><br><small style="color:var(--muted)">app.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>init_db()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>get_database_summary() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>init_db()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>get_database_summary()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>seed_initial_data()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>init_db() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>seed_initial_data()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>get_connection()</code><br><small style="color:var(--muted)">engine/db_manager.py</small><br><code>init_db()</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td>seed_initial_data() node in engine/db_manager.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>2. engine/db_manager.py — SQLite Star-Schema Persistence</code><br><small style="color:var(--muted)">docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 2. engine/db_manager.py — SQLite Star-Schema Persistence.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>1.6. Redundancy #6: Gọi `init_db()` (chứa `DROP VIEW IF EXISTS`) ở mọi lệnh đọc `get_database_summary()`</code><br><small style="color:var(--muted)">docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 1.6. Redundancy #6: Gọi `init_db()` (chứa `DROP VIEW IF EXISTS`) ở mọi lệnh đọc `get_database_summary()`.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Retrieve full health, table counts, file size, and rate limit status.</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Retrieve full health, table counts, file size, and rate limit status..</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Initialize database tables, indexes, and views.</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Initialize database tables, indexes, and views..</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Seed initial reference directory and baseline time series into local SQLite: 1.…</code><br><small style="color:var(--muted)">engine/db_manager.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Seed initial reference directory and baseline time series into local SQLite: 1.….</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>engine/db_manager.py</code></td><td>6 nodes</td></tr>
+<tr><td><code>docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md</code></td><td>1 nodes</td></tr>
+<tr><td><code>docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: references x5, explains x3, calls x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 12. Readmemd Institutional Overview ====== -->
+<h2 id="readmemd-institutional-overview">12. Readmemd Institutional Overview</h2>
+<p>Readmemd Institutional Overview groups implementation around readmemd, institutional, overview, project, mostly in README.md. This section covers 7 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Readmemd Institutional Overview (7 nodes, 6 edges)
+    readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6("Portfolio Optimization by Khim (v2.4 In...<br/><small>README.md</small>")
+    readme_f78a71af("README.md")
+    readme_1_overview_9a14e91c("1. Overview<br/><small>README.md</small>")
+    readme_key_institutional_capabilities_dfa3f3fb("Key Institutional Capabilities<br/><small>README.md</small>")
+    readme_2_project_structure_4094d325("2. Project Structure<br/><small>README.md</small>")
+    readme_3_local_development_testing_97cba534("3. Local Development &amp; Testing<br/><small>README.md</small>")
+    readme_4_cloud_deployment_render_com_199cb567("4. Cloud Deployment (Render.com)<br/><small>README.md</small>")
+    readme_f78a71af -->|contains| readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6
+    readme_1_overview_9a14e91c -->|contains| readme_key_institutional_capabilities_dfa3f3fb
+    readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6 -->|contains| readme_1_overview_9a14e91c
+    readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6 -->|contains| readme_2_project_structure_4094d325
+    readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6 -->|contains| readme_3_local_development_testing_97cba534
+    readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6 -->|contains| readme_4_cloud_deployment_render_com_199cb567
+    class readme_portfolio_optimization_by_khim_v2_4_insti_978fbde6 concept;
+    class readme_f78a71af concept;
+    class readme_1_overview_9a14e91c concept;
+    class readme_key_institutional_capabilities_dfa3f3fb concept;
+    class readme_2_project_structure_4094d325 concept;
+    class readme_3_local_development_testing_97cba534 concept;
+    class readme_4_cloud_deployment_render_com_199cb567 concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>README.md</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing README.md.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>1. Overview</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 1. Overview.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>2. Project Structure</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 2. Project Structure.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>3. Local Development &amp; Testing</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 3. Local Development &amp; Testing.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>4. Cloud Deployment (Render.com)</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 4. Cloud Deployment (Render.com).</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Key Institutional Capabilities</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Key Institutional Capabilities.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Portfolio Optimization by Khim (v2.4 Institutional Edition)</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Portfolio Optimization by Khim (v2.4 Institutional Edition).</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>README.md</code></td><td>7 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x6. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 13. Docs Readmemd Các ====== -->
+<h2 id="docs-readmemd-c-c">13. Docs Readmemd Các</h2>
+<p>Docs Readmemd Các groups implementation around docs, readmemd, các, trình, mostly in docs/README.md. This section covers 4 nodes and 3 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Docs Readmemd Các (4 nodes, 3 edges)
+    docs_readme_portfolio_optimization_by_khim_techn_9907dc8a("Portfolio Optimization by Khim — Techni...<br/><small>docs/README.md</small>")
+    docs_readme_ddc27e02("docs/README.md")
+    docs_readme_c_c_tr_nh_duy_t_th_t_ng_t_c_tr_c_qua_07ef8ac9("🌐 Các Trình Duyệt Đồ Thị Tương Tác Trực...<br/><small>docs/README.md</small>")
+    docs_readme_m_c_l_c_t_i_li_u_k_thu_t_96ab4070("📚 Mục Lục Tài Liệu Kỹ Thuật<br/><small>docs/README.md</small>")
+    docs_readme_ddc27e02 -->|contains| docs_readme_portfolio_optimization_by_khim_techn_9907dc8a
+    docs_readme_portfolio_optimization_by_khim_techn_9907dc8a -->|contains| docs_readme_c_c_tr_nh_duy_t_th_t_ng_t_c_tr_c_qua_07ef8ac9
+    docs_readme_portfolio_optimization_by_khim_techn_9907dc8a -->|contains| docs_readme_m_c_l_c_t_i_li_u_k_thu_t_96ab4070
+    class docs_readme_portfolio_optimization_by_khim_techn_9907dc8a concept;
+    class docs_readme_ddc27e02 concept;
+    class docs_readme_c_c_tr_nh_duy_t_th_t_ng_t_c_tr_c_qua_07ef8ac9 concept;
+    class docs_readme_m_c_l_c_t_i_li_u_k_thu_t_96ab4070 concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>docs/README.md</code><br><small style="color:var(--muted)">docs/README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing docs/README.md.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>🌐 Các Trình Duyệt Đồ Thị Tương Tác Trực Quan (Interactive Graph Viewers)</code><br><small style="color:var(--muted)">docs/README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 🌐 Các Trình Duyệt Đồ Thị Tương Tác Trực Quan (Interactive Graph Viewers).</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>📚 Mục Lục Tài Liệu Kỹ Thuật</code><br><small style="color:var(--muted)">docs/README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 📚 Mục Lục Tài Liệu Kỹ Thuật.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>Portfolio Optimization by Khim — Technical Documentation Hub</code><br><small style="color:var(--muted)">docs/README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Portfolio Optimization by Khim — Technical Documentation Hub.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>docs/README.md</code></td><td>4 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x3. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<h2 id="stats">Project Statistics</h2>
+
+<div class="grid">
+  <div class="card">
+    <h4>Graph</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>Nodes</td><td>413</td></tr>
+      <tr><td>Edges</td><td>1001</td></tr>
+      <tr><td>Hyperedges</td><td>0</td></tr>
+      <tr><td>Communities</td><td>24</td></tr>
+      <tr><td>Documented Sections</td><td>12</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Edge Confidence</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>EXTRACTED</td><td>815</td></tr>
+      <tr><td>INFERRED</td><td>186</td></tr>
+      <tr><td>AMBIGUOUS</td><td>0</td></tr>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
+  <p>portfolio-optimization-by-Khim-main — Architecture Documentation</p>
+  <p>Generated: 2026-11-10 08:56 UTC · graphify callflow-html</p>
+</div>
+
+</div><!-- .container -->
+
+<script>
+(function () {
+  const mermaidConfig = {
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#38bdf8',
+      secondaryColor: '#0f172a',
+      tertiaryColor: '#334155',
+      lineColor: '#64748b',
+      textColor: '#e2e8f0',
+    }
+  };
+
+  mermaid.initialize(mermaidConfig);
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function enhanceMermaidDiagrams() {
+    document.querySelectorAll('.mermaid').forEach((container) => {
+      if (container.dataset.zoomReady === 'true') return;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      container.dataset.zoomReady = 'true';
+      container.classList.add('is-enhanced');
+
+      const viewport = document.createElement('div');
+      viewport.className = 'mermaid-viewport';
+      svg.parentNode.insertBefore(viewport, svg);
+      viewport.appendChild(svg);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'mermaid-toolbar';
+      toolbar.innerHTML = [
+        '<button type="button" data-action="zoom-out" title="Zoom out">-</button>',
+        '<span class="zoom-level" data-role="level">100%</span>',
+        '<button type="button" data-action="zoom-in" title="Zoom in">+</button>',
+        '<button type="button" data-action="fit" title="Fit width">Fit</button>',
+        '<button type="button" data-action="reset" title="Reset view">Reset</button>'
+      ].join('');
+      container.insertBefore(toolbar, viewport);
+
+      const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+      const level = toolbar.querySelector('[data-role="level"]');
+
+      function applyTransform() {
+        svg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        level.textContent = `${Math.round(state.scale * 100)}%`;
+      }
+
+      function zoomBy(delta) {
+        state.scale = clamp(state.scale + delta, 0.25, 3);
+        applyTransform();
+      }
+
+      function reset() {
+        state.scale = 1;
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      function fitWidth() {
+        const rawWidth = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width
+          ? svg.viewBox.baseVal.width
+          : svg.getBoundingClientRect().width / state.scale;
+        if (!rawWidth) {
+          reset();
+          return;
+        }
+        state.scale = clamp((viewport.clientWidth - 48) / rawWidth, 0.25, 1.4);
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      toolbar.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        if (action === 'zoom-in') zoomBy(0.15);
+        if (action === 'zoom-out') zoomBy(-0.15);
+        if (action === 'fit') fitWidth();
+        if (action === 'reset') reset();
+      });
+
+      viewport.addEventListener('wheel', (event) => {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 0.1 : -0.1);
+      }, { passive: false });
+
+      viewport.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        state.dragging = true;
+        state.startX = event.clientX;
+        state.startY = event.clientY;
+        state.originX = state.x;
+        state.originY = state.y;
+        viewport.classList.add('is-dragging');
+        viewport.setPointerCapture(event.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (event) => {
+        if (!state.dragging) return;
+        state.x = state.originX + event.clientX - state.startX;
+        state.y = state.originY + event.clientY - state.startY;
+        applyTransform();
+      });
+
+      function endDrag(event) {
+        if (!state.dragging) return;
+        state.dragging = false;
+        viewport.classList.remove('is-dragging');
+        if (viewport.hasPointerCapture(event.pointerId)) {
+          viewport.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      viewport.addEventListener('pointerup', endDrag);
+      viewport.addEventListener('pointercancel', endDrag);
+      applyTransform();
+    });
+  }
+
+  function renderMermaid() {
+    const result = mermaid.run
+      ? mermaid.run({ querySelector: '.mermaid' })
+      : Promise.resolve();
+    Promise.resolve(result)
+      .then(enhanceMermaidDiagrams)
+      .catch((error) => {
+        console.error('Mermaid render failed:', error);
+        enhanceMermaidDiagrams();
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderMermaid);
+  } else {
+    renderMermaid();
+  }
+})();
+</script>
+
+</body>
+</html>

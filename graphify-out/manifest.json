@@ -1,0 +1,152 @@
+{
+  "app.py": {
+    "mtime": 1794298436.289845,
+    "seen": 1794299603.900555,
+    "ast_hash": "edc5fe65795bdd0670302f6ec655e4b6",
+    "semantic_hash": ""
+  },
+  "engine/__init__.py": {
+    "mtime": 1794279486.1353729,
+    "seen": 1794299603.900555,
+    "ast_hash": "13b43c6782355d791430dc550c4d3157",
+    "semantic_hash": ""
+  },
+  "engine/benchmark_engine.py": {
+    "mtime": 1794298436.3415184,
+    "seen": 1794299603.900555,
+    "ast_hash": "7d998f67b4365a54342efcfd6b897d01",
+    "semantic_hash": ""
+  },
+  "engine/data_exporter.py": {
+    "mtime": 1794279486.1521783,
+    "seen": 1794299603.900555,
+    "ast_hash": "19582930a9bb93e4882903236ab15bed",
+    "semantic_hash": ""
+  },
+  "engine/data_loader.py": {
+    "mtime": 1794295061.8283734,
+    "seen": 1794299603.900555,
+    "ast_hash": "8742b8a8bab5e242b74c5dc04a872e6f",
+    "semantic_hash": ""
+  },
+  "engine/db_manager.py": {
+    "mtime": 1794298106.489308,
+    "seen": 1794299603.900555,
+    "ast_hash": "5a06d51dac59b238c635855806952f00",
+    "semantic_hash": ""
+  },
+  "engine/excel_exporter.py": {
+    "mtime": 1794279486.1683278,
+    "seen": 1794299603.900555,
+    "ast_hash": "ea9280f742c45f82d4d49d8f659136fb",
+    "semantic_hash": ""
+  },
+  "engine/hayinsights_client.py": {
+    "mtime": 1794298436.4074776,
+    "seen": 1794299603.900555,
+    "ast_hash": "4d5bc0972df779c03d2744c26413db8c",
+    "semantic_hash": ""
+  },
+  "engine/risk_profiler.py": {
+    "mtime": 1794279486.18334,
+    "seen": 1794299603.900555,
+    "ast_hash": "b3e1554e50aa9213312d3d253c7f2fe7",
+    "semantic_hash": ""
+  },
+  "engine/template_generator.py": {
+    "mtime": 1794279486.1916063,
+    "seen": 1794299603.900555,
+    "ast_hash": "efa478eace92e07f00b1de13e16fa854",
+    "semantic_hash": ""
+  },
+  "engine/textbook_math.py": {
+    "mtime": 1794279486.1989427,
+    "seen": 1794299603.900555,
+    "ast_hash": "bee5fb6aaebcd5bfc2e89c33ebf8f9fe",
+    "semantic_hash": ""
+  },
+  "render.yaml": {
+    "mtime": 1794279486.1139398,
+    "seen": 1794299603.900555,
+    "ast_hash": "0bdc0e39e49d2a3e632539a1072ea4fc",
+    "semantic_hash": ""
+  },
+  "static/textbook_mvo.js": {
+    "mtime": 1794279486.2237723,
+    "seen": 1794299603.900555,
+    "ast_hash": "669d4b34a2fcf33f0b341cd70a8d8fd4",
+    "semantic_hash": ""
+  },
+  "tests/test_database_integrity.py": {
+    "mtime": 1794298436.4338129,
+    "seen": 1794299603.900555,
+    "ast_hash": "df6e0039381a322eb91d506668f683cc",
+    "semantic_hash": ""
+  },
+  "tests/test_textbook_engine.py": {
+    "mtime": 1794279486.2357767,
+    "seen": 1794299603.900555,
+    "ast_hash": "bf426de5f87a82d7fedc8711a8a15f3b",
+    "semantic_hash": ""
+  },
+  "PROJECT_STATE.md": {
+    "mtime": 1794279486.0882409,
+    "seen": 1794299603.900555,
+    "ast_hash": "b70e5a7ec75620c2136347ccfb0b199b",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1794279486.0951276,
+    "seen": 1794299603.900555,
+    "ast_hash": "1ed293f6db447412236c2f1e7d2b8359",
+    "semantic_hash": ""
+  },
+  "requirements.txt": {
+    "mtime": 1794279486.1212795,
+    "seen": 1794299603.900555,
+    "ast_hash": "8f104a770fd0b67284378f960e8dde30",
+    "semantic_hash": ""
+  },
+  "static/index.html": {
+    "mtime": 1794279486.2109342,
+    "seen": 1794299603.900555,
+    "ast_hash": "254f50248321cd0644fc0299206957a3",
+    "semantic_hash": ""
+  },
+  "docs/00_MASTER_ARCHITECTURE_AND_GRAPHIFY_MAP.md": {
+    "mtime": 1794299930.2039044,
+    "seen": 1794299963.9660335,
+    "ast_hash": "41dc1496742c36bb820d7cb87cca5d6e",
+    "semantic_hash": ""
+  },
+  "docs/01_BACKEND_PYTHON_FUNCTIONS_REFERENCE.md": {
+    "mtime": 1794300676.8304477,
+    "seen": 1794300963.0508718,
+    "ast_hash": "e016820108fd80e135fdbaa1153a8b76",
+    "semantic_hash": ""
+  },
+  "docs/02_DATABASE_AND_EXTERNAL_API_FLOWS.md": {
+    "mtime": 1794300709.9967256,
+    "seen": 1794300963.0508718,
+    "ast_hash": "695cdecb875f8ed1e0ba05d6d1be71ee",
+    "semantic_hash": ""
+  },
+  "docs/03_FRONTEND_UI_SYNC_AND_TEST_PLAYBOOK.md": {
+    "mtime": 1794299930.50464,
+    "seen": 1794299963.9660335,
+    "ast_hash": "4f7f450d98bb9dca4eddb68a40a33809",
+    "semantic_hash": ""
+  },
+  "docs/README.md": {
+    "mtime": 1794300941.1481357,
+    "seen": 1794300963.0508718,
+    "ast_hash": "ed81ace7d072128e3504753ffa3f8569",
+    "semantic_hash": ""
+  },
+  "docs/04_SYSTEM_AUDIT_OPTIMIZATION_AND_ENGINEERING_GUIDELINES.md": {
+    "mtime": 1794300875.392281,
+    "seen": 1794300963.0508718,
+    "ast_hash": "fadc012139709c687883ff153cda88ad",
+    "semantic_hash": ""
+  }
+}

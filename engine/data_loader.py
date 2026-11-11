@@ -169,4 +169,12 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> dict[str, Any]:
         "daily_returns_df": moments["daily_returns_df"],
         "latest_prices": moments["latest_prices"],
     })
+
+    # Enrich local SQLite database with uploaded prices (Zero Quota)
+    try:
+        from engine import db_manager
+        db_manager.ingest_uploaded_prices_df(df_clean, df_vol_clean)
+    except Exception:
+        pass
+
     return moments
