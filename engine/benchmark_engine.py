@@ -17,6 +17,7 @@ import json
 import math
 import time
 import urllib.request
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -73,12 +74,12 @@ def _slice_series_by_horizon(s: pd.Series | pd.DataFrame, rng_key: str):
 
 def fetch_benchmark_series(symbol: str = "VNINDEX", range_str: str = "1y") -> pd.Series:
     """
-    Fetch daily closing levels for VNINDEX or VN30 from VNDirect DChart API.
+    Fetch daily closing levels for VNINDEX, VN30, HNX, or UPCOM from Local DB or VNDirect DChart API.
     Supports horizons: 6m, 1y, 2y, 3y, 5y, ytd, max.
     Never returns fabricated synthetic benchmark data on API error.
     """
     sym = (symbol or "VNINDEX").strip().upper()
-    if sym not in ("VNINDEX", "VN30"):
+    if sym not in ("VNINDEX", "VN30", "HNX", "UPCOM"):
         sym = "VNINDEX"
     rng_key = (range_str or "1y").strip().lower()
     cache_key = (sym, rng_key)
@@ -90,6 +91,32 @@ def fetch_benchmark_series(symbol: str = "VNINDEX", range_str: str = "1y") -> pd
             return cached_series.copy()
 
     lookback_days = RANGE_DAYS_MAP.get(rng_key, 380)
+    min_db_pts = {"6m": 80, "1y": 180, "2y": 360, "3y": 540, "5y": 900, "ytd": 15, "max": 180}.get(rng_key, 100)
+
+    def _valid_db_benchmark() -> pd.Series | None:
+        from engine import db_manager
+        s_db = db_manager.get_benchmark_series_from_db(sym, lookback_days=lookback_days)
+        if s_db is None or len(s_db) < min_db_pts:
+            return None
+        s_sliced = _slice_series_by_horizon(s_db, rng_key)
+        if len(s_sliced) < 10:
+            return None
+        if rng_key == "ytd":
+            first_dt = s_db.index[0].date()
+            last_yr = s_db.index[-1].year
+            if first_dt.year == last_yr and (first_dt.month > 1 or first_dt.day > 15):
+                return None
+        return s_sliced
+
+    # 1. Check Local SQLite Database first when fresh & covering horizon (Zero Quota)
+    try:
+        s_fresh = _valid_db_benchmark()
+        if s_fresh is not None and (datetime.now().date() - s_fresh.index[-1].date()).days <= 5:
+            _BENCHMARK_CACHE[cache_key] = (now, s_fresh)
+            return s_fresh.copy()
+    except Exception:
+        pass
+
     to_ts = int(now)
     from_ts = to_ts - (lookback_days * 86400)
     url = (
@@ -113,6 +140,13 @@ def fetch_benchmark_series(symbol: str = "VNINDEX", range_str: str = "1y") -> pd
         if not timestamps or len(timestamps) < 10:
             raise ValueError("Dữ liệu benchmark trả về quá ít phiên.")
 
+        # Persist index series into local SQLite database
+        try:
+            from engine import db_manager
+            db_manager.upsert_market_index_daily(sym, payload)
+        except Exception:
+            pass
+
         dates = pd.to_datetime(timestamps, unit="s", errors="coerce").normalize()
         s = pd.Series(pd.to_numeric(closes, errors="coerce"), index=dates, name=sym, dtype=float)
         s = s[s.index.notna()]
@@ -124,7 +158,67 @@ def fetch_benchmark_series(symbol: str = "VNINDEX", range_str: str = "1y") -> pd
         _BENCHMARK_CACHE[cache_key] = (now, s)
         return s.copy()
     except Exception as exc:
+        # Offline fallback only if real cached market series exists in local SQLite
+        try:
+            s_db_fb = _valid_db_benchmark()
+            if s_db_fb is not None:
+                _BENCHMARK_CACHE[cache_key] = (now, s_db_fb)
+                return s_db_fb.copy()
+        except Exception:
+            pass
         raise RuntimeError(f"Không thể tải dữ liệu chỉ số {sym} từ VNDirect DChart API ({exc}).") from exc
+
+
+def sync_benchmark_index_to_db(symbol: str = "VNINDEX", range_str: str = "1y") -> dict[str, Any]:
+    """
+    Explicitly fetch and persist market index OHLCV from VNDirect DChart API into fact_market_indices_daily.
+    Supported indices: VNINDEX, VN30, HNX, UPCOM.
+    """
+    sym = (symbol or "VNINDEX").strip().upper()
+    if sym not in ("VNINDEX", "VN30", "HNX", "UPCOM"):
+        raise ValueError(f"Chỉ số '{sym}' không được hỗ trợ. Vui lòng chọn VNINDEX, VN30, HNX hoặc UPCOM.")
+
+    rng_key = (range_str or "1y").strip().lower()
+    lookback_days = RANGE_DAYS_MAP.get(rng_key, 380)
+
+    now = int(time.time())
+    from_ts = now - (lookback_days * 86400)
+    url = (
+        f"https://dchart-api.vndirect.com.vn/dchart/history"
+        f"?resolution=D&symbol={sym}&from={from_ts}&to={now}"
+    )
+
+    if HAS_CFFI:
+        resp = cffi_requests.get(url, impersonate="chrome120", timeout=8)
+        if resp.status_code != 200:
+            raise RuntimeError(f"VNDirect DChart API trả về mã lỗi HTTP {resp.status_code}")
+        payload = resp.json()
+    else:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            payload = json.loads(r.read().decode("utf-8"))
+
+    timestamps = payload.get("t", [])
+    closes = payload.get("c", [])
+    if not timestamps or not closes:
+        raise ValueError(f"Không có dữ liệu lịch sử cho chỉ số {sym} trong khung thời gian {range_str}.")
+
+    from engine import db_manager
+    count = db_manager.upsert_market_index_daily(sym, payload)
+
+    last_ts = timestamps[-1]
+    last_date = datetime.fromtimestamp(last_ts).strftime("%Y-%m-%d")
+    last_close = float(closes[-1])
+
+    return {
+        "status": "success",
+        "symbol": sym,
+        "range": rng_key,
+        "records_upserted": count,
+        "latest_date": last_date,
+        "latest_close": last_close,
+        "source": "VNDirect DChart API",
+    }
 
 
 def compute_benchmark_comparison(
