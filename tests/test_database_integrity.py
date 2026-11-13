@@ -185,11 +185,13 @@ def test_analytical_views_precision_and_computation():
     """Verify that analytical views compute correct float precision (specifically simple_return is not 0)."""
     conn = db_manager.get_connection()
     try:
-        # Check if DB is empty; if so, insert temporary fixture rows for testing views
+        # Check independently if price table or macro table is empty; insert temporary fixture rows if so
         cur = conn.execute("SELECT COUNT(*) AS cnt FROM fact_equity_daily_prices")
-        is_empty = (cur.fetchone()["cnt"] == 0)
+        is_prices_empty = (cur.fetchone()["cnt"] == 0)
+        cur_macro = conn.execute("SELECT COUNT(*) AS cnt FROM fact_macro_time_series")
+        is_macro_empty = (cur_macro.fetchone()["cnt"] == 0)
 
-        if is_empty:
+        if is_prices_empty:
             conn.execute(
                 """
                 INSERT INTO fact_equity_daily_prices 
@@ -199,6 +201,7 @@ def test_analytical_views_precision_and_computation():
                 ('FPT', '2026-11-06', 136900.0, 136900.0, 1200000, 1200000, 164280000000.0, 0)
                 """
             )
+        if is_macro_empty:
             conn.execute(
                 """
                 INSERT INTO fact_macro_time_series 
@@ -206,6 +209,7 @@ def test_analytical_views_precision_and_computation():
                 VALUES ('VN_BOND_10Y', '2026-11-06', '10Y', 0.0285, 0.0282, 0.0003, 1.06)
                 """
             )
+        if is_prices_empty or is_macro_empty:
             conn.commit()
 
         # 1. Test vw_equity_daily_returns
@@ -241,9 +245,11 @@ def test_analytical_views_precision_and_computation():
         assert len(macro_rows) >= 1, f"Expected at least 1 macro indicator snapshot, got {len(macro_rows)}"
 
         # Clean up temporary fixture rows if inserted
-        if is_empty:
+        if is_prices_empty:
             conn.execute("DELETE FROM fact_equity_daily_prices WHERE symbol = 'FPT'")
+        if is_macro_empty:
             conn.execute("DELETE FROM fact_macro_time_series WHERE indicator_code = 'VN_BOND_10Y'")
+        if is_prices_empty or is_macro_empty:
             conn.commit()
     finally:
         conn.close()

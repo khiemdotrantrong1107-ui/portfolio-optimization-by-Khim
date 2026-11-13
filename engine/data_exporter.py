@@ -55,8 +55,9 @@ def export_live_price_dataset_xlsx(
     df_prices: pd.DataFrame,
     df_volumes: pd.DataFrame | None = None,
     daily_returns_df: pd.DataFrame | None = None,
-    latest_prices: dict[str, float] | None = None,
+    latest_prices: dict[str, float | None] | None = None,
     data_meta: dict[str, Any] | None = None,
+    lang: str = "vi",
 ) -> bytes:
     """
     Generate a 4-sheet Excel workbook containing the active portfolio's historical data:
@@ -180,8 +181,13 @@ def export_live_price_dataset_xlsx(
     ws_s = wb.create_sheet(title="Universe_Summary")
     ws_s.views.sheetView[0].showGridLines = True
 
+    is_en = str(lang or "vi").lower() == "en"
     ws_s.merge_cells("A1:H2")
-    ws_s["A1"] = "TỔNG HỢP DỮ LIỆU GIÁ LỊCH SỬ & KHỐI LƯỢNG GIAO DỊCH ĐẦU VÀO (MVO INPUT DATASET)"
+    ws_s["A1"] = (
+        "HISTORICAL PRICE & VOLUME INPUT DATASET SUMMARY"
+        if is_en
+        else "TỔNG HỢP DỮ LIỆU GIÁ LỊCH SỬ & KHỐI LƯỢNG GIAO DỊCH ĐẦU VÀO (MVO INPUT DATASET)"
+    )
     for row in ws_s.iter_rows(min_row=1, max_row=2, min_col=1, max_col=8):
         for cell in row:
             cell.fill = st["navy_fill"]
@@ -196,10 +202,10 @@ def export_live_price_dataset_xlsx(
     )
 
     info_rows = [
-        ("Ngày trích xuất", datetime.now().strftime("%Y-%m-%d %H:%M"), "Nguồn dữ liệu", meta.get("source", "HayInsights Live API")),
-        ("Khung thời gian (Window)", str(meta.get("range", "1y")).upper(), "Phiên bản công thức giá", meta.get("formula_version", "vnsc-adjusted-close-v1")),
-        ("Ngày bắt đầu", from_dt, "Ngày kết thúc", to_dt),
-        ("Số lượng cổ phiếu", len(clean_syms), "Số phiên giao dịch (Aligned)", len(df_p)),
+        ("Exported At" if is_en else "Ngày trích xuất", datetime.now().strftime("%Y-%m-%d %H:%M"), "Data Source" if is_en else "Nguồn dữ liệu", meta.get("source", "HayInsights Live API")),
+        ("Window" if is_en else "Khung thời gian (Window)", str(meta.get("range", "1y")).upper(), "Price Basis" if is_en else "Phiên bản công thức giá", meta.get("formula_version", "vnsc-adjusted-close-v1")),
+        ("Start Date" if is_en else "Ngày bắt đầu", from_dt, "End Date" if is_en else "Ngày kết thúc", to_dt),
+        ("Assets / Dropped Days" if is_en else "Số mã / Phiên bị loại", f"{len(clean_syms)} / {meta.get('dropped_days_count', 0)}", "Aligned Sessions" if is_en else "Số phiên giao dịch (Aligned)", len(df_p)),
     ]
     for idx, (k1, v1, k2, v2) in enumerate(info_rows, start=4):
         ws_s.cell(row=idx, column=1, value=k1).font = st["bold_font"]
@@ -209,19 +215,14 @@ def export_live_price_dataset_xlsx(
         for c_i in (1, 2, 4, 5):
             ws_s.cell(row=idx, column=c_i).border = st["thin_border"]
 
-    ws_s["A10"] = "THỐNG KÊ CHI TIẾT TỪNG MÃ CỔ PHIẾU TRONG RỔ TỐI ƯU HÓA"
+    ws_s["A10"] = "PER-ASSET PRICE & VOLUME SUMMARY" if is_en else "THỐNG KÊ CHI TIẾT TỪNG MÃ CỔ PHIẾU TRONG RỔ TỐI ƯU HÓA"
     ws_s["A10"].font = st["sec_font"]
 
-    sum_headers = [
-        "Mã CP",
-        "Giá Khớp Lệnh Gần Nhất (VNĐ)",
-        "Giá Điều Chỉnh Đầu Kỳ",
-        "Giá Điều Chỉnh Cuối Kỳ",
-        "Tăng Trưởng Lũy Kế (%)",
-        "KLGD Trung Bình / Phiên",
-        "KLGD Cao Nhất Phiên",
-        "Tổng KLGD Toàn Kỳ",
-    ]
+    sum_headers = (
+        ["Ticker", "Latest Execution Price (VND)", "Start Period Price", "End Period Price", "Cumulative Return (%)", "Avg Daily Volume", "Max Daily Volume", "Total Period Volume"]
+        if is_en
+        else ["Mã CP", "Giá Khớp Lệnh Gần Nhất (VNĐ)", "Giá Đầu Kỳ", "Giá Cuối Kỳ", "Tăng Trưởng Lũy Kế (%)", "KLGD Trung Bình / Phiên", "KLGD Cao Nhất Phiên", "Tổng KLGD Toàn Kỳ"]
+    )
     for col_i, h in enumerate(sum_headers, start=1):
         c = ws_s.cell(row=11, column=col_i, value=h)
         c.fill = st["sub_fill"]
@@ -237,7 +238,8 @@ def export_live_price_dataset_xlsx(
 
         p_first = float(p_series.iloc[0]) if len(p_series) > 0 else 0.0
         p_last = float(p_series.iloc[-1]) if len(p_series) > 0 else 0.0
-        p_raw_latest = float(latest_map.get(sym, p_last))
+        raw_lp = latest_map.get(sym)
+        p_raw_latest = float(raw_lp) if raw_lp is not None else p_last
         cum_ret = (p_last / p_first - 1.0) if p_first > 0 else 0.0
 
         v_avg = float(v_series.mean()) if len(v_series) > 0 else 0.0
@@ -267,9 +269,10 @@ def export_live_parameter_matrix_xlsx(
     std: list[float] | np.ndarray,
     corr: list[list[float]] | np.ndarray,
     cov: list[list[float]] | np.ndarray,
-    latest_prices: dict[str, float] | None = None,
+    latest_prices: dict[str, float | None] | None = None,
     rf: float = 0.045,
     data_meta: dict[str, Any] | None = None,
+    lang: str = "vi",
 ) -> bytes:
     """
     Generate a 3-sheet Excel workbook containing the active portfolio's parameter matrices:
@@ -277,6 +280,7 @@ def export_live_parameter_matrix_xlsx(
     2. Covariance_Matrix (Annualized Variance-Covariance Matrix Sigma)
     3. Asset_Statistics (Summary of moments, Sharpe ratios, and data provenance)
     """
+    is_en = str(lang or "vi").lower() == "en"
     st = _common_styles()
     wb = Workbook()
     meta = data_meta or {}
@@ -319,9 +323,14 @@ def export_live_parameter_matrix_xlsx(
         c_std.number_format = "0.00%"
         c_std.font = st["reg_font"]
 
-        c_lp = ws_param.cell(row=r, column=4, value=float(latest_map.get(sym, 50000.0)))
-        c_lp.number_format = "#,##0"
-        c_lp.font = st["reg_font"]
+        lp_raw = latest_map.get(sym)
+        if lp_raw is not None:
+            c_lp = ws_param.cell(row=r, column=4, value=float(lp_raw))
+            c_lp.number_format = "#,##0"
+            c_lp.font = st["reg_font"]
+        else:
+            c_lp = ws_param.cell(row=r, column=4, value=None)
+            c_lp.font = st["reg_font"]
 
         for j in range(n):
             c_corr = ws_param.cell(row=r, column=5 + j, value=float(corr_arr[i, j]))
@@ -339,10 +348,14 @@ def export_live_parameter_matrix_xlsx(
     ws_cov = wb.create_sheet(title="Covariance_Matrix")
     ws_cov.views.sheetView[0].showGridLines = True
 
-    ws_cov["A1"] = "MA TRẬN HIỆP PHƯƠNG SAI NĂM HÓA (ANNUALIZED COVARIANCE MATRIX Σ - 252 TRADING DAYS)"
+    ws_cov["A1"] = (
+        "ANNUALIZED COVARIANCE MATRIX (Σ - 252 TRADING DAYS)"
+        if is_en
+        else "MA TRẬN HIỆP PHƯƠNG SAI NĂM HÓA (ANNUALIZED COVARIANCE MATRIX Σ - 252 TRADING DAYS)"
+    )
     ws_cov["A1"].font = st["sec_font"]
 
-    ws_cov.cell(row=3, column=1, value="Mã CP").fill = st["sub_fill"]
+    ws_cov.cell(row=3, column=1, value="Ticker" if is_en else "Mã CP").fill = st["sub_fill"]
     ws_cov.cell(row=3, column=1).font = st["hdr_font"]
     ws_cov.cell(row=3, column=1).border = st["thin_border"]
 
@@ -375,25 +388,33 @@ def export_live_parameter_matrix_xlsx(
     ws_stat = wb.create_sheet(title="Asset_Statistics")
     ws_stat.views.sheetView[0].showGridLines = True
 
-    ws_stat["A1"] = "THỐNG KÊ THAM SỐ ĐẦU VÀO CỦA TỪNG TÀI SẢN (INDIVIDUAL ASSET MOMENTS)"
+    ws_stat["A1"] = (
+        "INDIVIDUAL ASSET INPUT MOMENTS & SHARPE SUMMARY"
+        if is_en
+        else "THỐNG KÊ THAM SỐ ĐẦU VÀO CỦA TỪNG TÀI SẢN (INDIVIDUAL ASSET MOMENTS)"
+    )
     ws_stat["A1"].font = st["sec_font"]
 
-    ws_stat["A3"] = "Nguồn dữ liệu:"
+    ws_stat["A3"] = "Data Source:" if is_en else "Nguồn dữ liệu:"
     ws_stat["A3"].font = st["bold_font"]
     ws_stat["B3"] = meta.get("source", "HayInsights Live API")
-    ws_stat["D3"] = "Lãi suất phi rủi ro (Rf):"
+    ws_stat["D3"] = "Risk-Free Rate (Rf):" if is_en else "Lãi suất phi rủi ro (Rf):"
     ws_stat["D3"].font = st["bold_font"]
     ws_stat["E3"] = float(rf)
     ws_stat["E3"].number_format = "0.00%"
 
-    stat_headers = [
-        "Mã CP (Symbol)",
-        "Lợi Suất Kỳ Vọng E(Ri) Năm",
-        "Độ Lệch Chuẩn σi Năm",
-        "Phương Sai σi² Năm",
-        "Sharpe Ratio Đơn Lẻ",
-        "Thị Giá Khớp Lệnh Gần Nhất (VNĐ)",
-    ]
+    stat_headers = (
+        ["Symbol", "Annualized E(Ri)", "Annualized σi", "Annualized Variance σi²", "Standalone Sharpe", "Execution Price (VND)"]
+        if is_en
+        else [
+            "Mã CP (Symbol)",
+            "Lợi Suất Kỳ Vọng E(Ri) Năm",
+            "Độ Lệch Chuẩn σi Năm",
+            "Phương Sai σi² Năm",
+            "Sharpe Ratio Đơn Lẻ",
+            "Thị Giá / Giả Định (VNĐ)",
+        ]
+    )
     for col_i, h in enumerate(stat_headers, start=1):
         c = ws_stat.cell(row=5, column=col_i, value=h)
         c.fill = st["navy_fill"]
@@ -408,14 +429,17 @@ def export_live_parameter_matrix_xlsx(
         sd_i = float(std_arr[i])
         var_i = float(cov_arr[i, i])
         sr_i = (er_i - rf) / sd_i if sd_i > 1e-8 else 0.0
-        lp_i = float(latest_map.get(sym, 50000.0))
+        lp_raw = latest_map.get(sym)
 
         ws_stat.cell(row=r, column=1, value=sym).font = st["bold_font"]
         ws_stat.cell(row=r, column=2, value=er_i).number_format = "0.00%"
         ws_stat.cell(row=r, column=3, value=sd_i).number_format = "0.00%"
         ws_stat.cell(row=r, column=4, value=var_i).number_format = "0.000000"
         ws_stat.cell(row=r, column=5, value=sr_i).number_format = "0.000"
-        ws_stat.cell(row=r, column=6, value=lp_i).number_format = "#,##0"
+        if lp_raw is not None:
+            ws_stat.cell(row=r, column=6, value=float(lp_raw)).number_format = "#,##0"
+        else:
+            ws_stat.cell(row=r, column=6, value="N/A").alignment = Alignment(horizontal="center")
 
         for col_i in range(1, 7):
             ws_stat.cell(row=r, column=col_i).border = st["thin_border"]
