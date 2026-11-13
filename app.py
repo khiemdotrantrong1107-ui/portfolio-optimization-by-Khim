@@ -19,12 +19,19 @@ from engine import (
     benchmark_engine,
     data_exporter,
     data_loader,
+    db_manager,
     excel_exporter,
     hayinsights_client,
     risk_profiler,
     template_generator,
     textbook_math,
 )
+
+# Initialize and seed local database on startup
+try:
+    db_manager.seed_initial_data()
+except Exception:
+    pass
 
 app = FastAPI(
     title="Portfolio Optimization by Khim — Institutional MVO Workbench",
@@ -130,7 +137,7 @@ def _build_full_analysis(req: OptimizeRequest) -> dict[str, Any]:
         moments["latest_prices"] = live["latest_raw_prices"]
         moments["volumes_df"] = live.get("df_volumes")
         data_meta = {
-            "source": "HayInsights Live API (Finhay / VNSC)",
+            "source": live.get("source", "HayInsights Live API (Finhay / VNSC)"),
             "range": live["range"],
             "from_date": live["from_date"],
             "to_date": live["to_date"],
@@ -327,6 +334,69 @@ def api_quote_ticker(symbol: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.get("/api/db/stats")
+def api_get_db_stats():
+    """Retrieve health metrics, table row counts, file size, and rate limit tracking."""
+    try:
+        return db_manager.get_database_summary()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/db/sync/equity/{symbol}")
+def api_sync_equity_to_db(symbol: str, range_str: str = "1y", fetch_profile: bool = True):
+    """Synchronize a single equity's prices and fundamental profile into local SQLite."""
+    try:
+        sym = symbol.strip().upper()
+        p_res = hayinsights_client.fetch_single_equity(sym, range_str=range_str)
+        profile_res = None
+        if fetch_profile:
+            try:
+                profile_res = hayinsights_client.fetch_equity_profile_and_ratios(sym)
+            except Exception:
+                pass
+        return {
+            "status": "success",
+            "symbol": sym,
+            "prices_points": len(p_res.get("data", {}).get("points", [])),
+            "profile_synced": profile_res is not None,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/db/sync/index/{code}")
+def api_sync_market_index(code: str, range_str: str = "1y"):
+    """
+    Synchronize market index OHLCV history (VNINDEX, VN30, HNX, UPCOM) from VNDirect API into fact_market_indices_daily.
+    """
+    try:
+        sym = code.strip().upper()
+        res = benchmark_engine.sync_benchmark_index_to_db(sym, range_str=range_str)
+        return res
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/db/sync/macro")
+def api_sync_macro_to_db(endpoint_type: str = "rates_yields", country: str = "VN", period: str = "10Y", pair: str = "USD/VND"):
+    """
+    Synchronize macroeconomic rates (Gov Bond Yields) or exchange rates into fact_macro_time_series.
+    """
+    try:
+        if endpoint_type == "rates_yields":
+            params = {"country": country, "period": period}
+        elif endpoint_type in ("exchange_rate", "exchange-rate"):
+            params = {"pair": pair}
+        else:
+            params = {"country": country, "period": period}
+
+        res = hayinsights_client.fetch_macro_data(endpoint_type, params=params)
+        return res
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/quiz")
 def api_evaluate_quiz(sub: QuizSubmission):
     try:
@@ -455,7 +525,7 @@ def api_export_prices(req: OptimizeRequest):
             latest_prices = live["latest_raw_prices"]
             win_tag = win_str.upper()
             meta = {
-                "source": "HayInsights Live API (Finhay / VNSC)",
+                "source": live.get("source", "HayInsights Live API (Finhay / VNSC)"),
                 "range": live["range"],
                 "from_date": live["from_date"],
                 "to_date": live["to_date"],
