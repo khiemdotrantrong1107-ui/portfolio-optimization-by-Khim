@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portfolio Optimization by Markowits</title>
+  <title>Tối Ưu Hóa Danh Mục Markowitz</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -14,7 +14,7 @@
             navy: {
               500: '#3b82f6',
               600: '#2563eb',
-              700: '#1d4ed8',
+              700: '#1d4ed8'
             }
           }
         }
@@ -22,52 +22,62 @@
     };
   </script>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.5.0" />
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- Top Navigation Bar (Swiss Minimalist Single-Canvas) -->
+  <!-- Top Navigation Bar -->
   <header class="sticky top-0 z-40 border-b" style="background-color: var(--bg-card); border-color: var(--border-color);">
-    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+    <div class="max-w-[1440px] mx-auto px-3 sm:px-6 min-h-[3.5rem] py-2 flex items-center justify-between gap-2 sm:gap-4">
       <!-- Brand Title -->
-      <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 rounded flex items-center justify-center bg-navy-600 text-white">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded flex items-center justify-center bg-navy-600 text-white shrink-0" aria-hidden="true">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v18h18" />
             <path d="M7 16c2.5-6 6-9 13-11" />
             <circle cx="14" cy="8" r="2" />
           </svg>
         </div>
-        <h1 class="text-sm sm:text-base font-semibold tracking-tight" style="color: var(--text-primary);">
-          Portfolio Optimization by Markowits
-        </h1>
+        <div class="min-w-0">
+          <h1 data-i18n="app.title" class="text-sm sm:text-base font-semibold tracking-tight truncate" style="color: var(--text-primary);">
+            Tối Ưu Hóa Danh Mục Markowitz
+          </h1>
+          <p data-i18n="app.subtitle" class="hidden sm:block text-[11px] truncate" style="color: var(--text-muted);">
+            Mô hình Biên Hiệu Quả Mean-Variance • Long-Only Không Đòn Bẩy
+          </p>
+        </div>
       </div>
 
-      <!-- Right Actions -->
-      <div class="flex items-center gap-2">
-        <div class="hidden md:flex items-center gap-1.5 mr-1">
-          <button id="btn-export-matrix" type="button" onclick="exportCurrentMatrixData()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5" title="Xuất Ma trận Tham số E(R), Volatility, Tương quan và Hiệp phương sai của danh mục hiện tại">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <!-- Right Actions: Desktop Exports, Language VI/EN Toggle, Theme Toggle, Primary Excel -->
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div class="hidden lg:flex items-center gap-1.5 mr-1">
+          <button id="btn-export-matrix" type="button" onclick="exportCurrentMatrixData()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Export Matrix Data</span>
+            <span data-i18n="nav.export_matrix">Xuất Ma trận</span>
           </button>
-          <button id="btn-export-prices" type="button" onclick="exportCurrentPriceData()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5" title="Xuất Chuỗi giá lịch sử thực tế, Khối lượng giao dịch (Volume) và Lợi suất ngày của danh mục">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <button id="btn-export-prices" type="button" onclick="exportCurrentPriceData()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Export Price Data</span>
+            <span data-i18n="nav.export_prices">Xuất Dữ liệu Giá</span>
           </button>
         </div>
 
-        <!-- Theme Toggle Button (Light / Dark) -->
-        <button id="btn-theme-toggle" type="button" onclick="toggleTheme()" class="btn-outline p-1.5 text-xs flex items-center justify-center w-8 h-8" title="Chuyển đổi chế độ Sáng / Tối">
-          <!-- Sun Icon (shown in dark mode) -->
-          <svg id="icon-theme-sun" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <!-- VI / EN Language Switcher -->
+        <div class="segmented-group" role="group" aria-label="Language / Ngôn ngữ">
+          <button id="btn-lang-vi" type="button" onclick="setLanguage('vi')" class="segmented-btn active" aria-pressed="true">VI</button>
+          <button id="btn-lang-en" type="button" onclick="setLanguage('en')" class="segmented-btn" aria-pressed="false">EN</button>
+        </div>
+
+        <!-- Theme Toggle Button -->
+        <button id="btn-theme-toggle" type="button" onclick="toggleTheme()" class="btn-outline p-1.5 text-xs flex items-center justify-center w-9 h-9 touch-target" data-i18n-aria="nav.theme_toggle" aria-label="Chuyển chế độ Sáng / Tối">
+          <svg id="icon-theme-sun" class="w-4 h-4 hidden" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5" />
             <line x1="12" y1="1" x2="12" y2="3" />
             <line x1="12" y1="21" x2="12" y2="23" />
@@ -78,53 +88,74 @@
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
           </svg>
-          <!-- Moon Icon (shown in light mode) -->
-          <svg id="icon-theme-moon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg id="icon-theme-moon" class="w-4 h-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         </button>
 
         <!-- Primary Export Button -->
-        <button id="btn-export-excel" type="button" class="btn-primary px-3 py-1.5 text-xs inline-flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button id="btn-export-excel" type="button" class="btn-primary px-2.5 sm:px-3 py-1.5 text-xs inline-flex items-center gap-1.5 touch-target">
+          <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="8" y1="13" x2="16" y2="13" />
             <line x1="8" y1="17" x2="16" y2="17" />
           </svg>
-          <span>Export Excel</span>
+          <span class="hidden sm:inline" data-i18n="nav.export_excel">Xuất Excel (8 Sheet)</span>
+          <span class="sm:hidden">Excel</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Main Single-Canvas Workspace -->
-  <main class="max-w-[1440px] mx-auto w-full px-4 sm:px-6 py-5 space-y-5 flex-1">
+  <!-- Main Workspace -->
+  <main class="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5 flex-1">
 
-    <!-- Top Row: 4 Minimalist KPI Metric Cards -->
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+    <!-- Live Status & Model Transparency Banners -->
+    <div id="status-banners-region" class="space-y-2" aria-live="polite">
+      <div id="banner-computing" class="hidden p-3 rounded-lg border text-xs font-medium flex items-center gap-2" role="status" style="background-color: var(--alert-info-bg); border-color: var(--accent); color: var(--text-primary);">
+        <span class="inline-block w-2.5 h-2.5 rounded-full animate-ping" style="background-color: var(--accent);"></span>
+        <span data-i18n="banner.computing">Đang tối ưu hóa danh mục và đồng bộ dữ liệu...</span>
+      </div>
+
+      <div id="banner-stale" class="hidden p-3 rounded-lg border text-xs font-medium flex flex-wrap items-center justify-between gap-2" role="status" style="background-color: var(--alert-warning-bg); border-color: var(--warning); color: var(--text-primary);">
+        <span data-i18n="banner.stale">Thông số đầu vào đã thay đổi so với kết quả đang hiển thị — bấm Chạy Tối Ưu Hóa để cập nhật số liệu và mở khóa Xuất báo cáo.</span>
+        <button type="button" onclick="runMVOOptimization()" class="btn-primary px-3 py-1 text-xs shrink-0" data-i18n="btn.run">Chạy Tối Ưu Hóa</button>
+      </div>
+
+      <div id="banner-error" class="hidden p-3.5 rounded-lg border text-xs space-y-1" role="alert" style="background-color: var(--alert-danger-bg); border-color: var(--danger); color: var(--text-primary);">
+        <div id="banner-error-title" class="font-bold" style="color: var(--danger);" data-i18n="banner.error_title">Không thể tối ưu hóa với ràng buộc hiện tại</div>
+        <div id="banner-error-msg" class="font-medium"></div>
+        <div id="banner-error-suggestion" class="text-[11px] font-mono" style="color: var(--text-secondary);"></div>
+      </div>
+
+      <div id="banner-model-notice" class="hidden p-3 rounded-lg border text-xs font-medium" role="status" style="background-color: var(--alert-info-bg); border-color: var(--accent); color: var(--text-primary);"></div>
+    </div>
+
+    <!-- Step 3 KPI Strip -->
+    <section aria-label="Portfolio KPI Summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
       <!-- KPI 1: Sharpe Ratio -->
-      <div class="swiss-card p-4 flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Max Sharpe (Tangency)</span>
-          <span class="text-[11px] font-mono px-1.5 py-0.5 rounded swiss-subtle" style="color: var(--text-secondary);">Optimal Risky</span>
+      <div class="swiss-card p-3.5 sm:p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between gap-1">
+          <span data-i18n="kpi.max_sharpe" class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Max Sharpe (Tangency)</span>
+          <span data-i18n="kpi.optimal_risky" class="text-[10px] font-mono px-1.5 py-0.5 rounded swiss-subtle hidden sm:inline" style="color: var(--text-secondary);">Rủi ro Tối ưu</span>
         </div>
-        <div class="mt-2 flex items-baseline justify-between">
-          <span id="kpi-tan-sr" class="text-2xl font-bold font-mono tracking-tight" style="color: var(--accent);">--</span>
+        <div class="mt-2 flex items-baseline justify-between gap-2">
+          <span id="kpi-tan-sr" class="text-xl sm:text-2xl font-bold font-mono tracking-tight" style="color: var(--accent);">--</span>
           <div class="text-right text-[11px] font-mono" style="color: var(--text-muted);">
-            GMV SR: <span id="kpi-gmv-sr" class="font-semibold" style="color: var(--text-primary);">--</span>
+            <span data-i18n="kpi.gmv_sr">Sharpe GMV</span>: <span id="kpi-gmv-sr" class="font-semibold" style="color: var(--text-primary);">--</span>
           </div>
         </div>
       </div>
 
       <!-- KPI 2: Expected Return -->
-      <div class="swiss-card p-4 flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Expected Return E(R)</span>
-          <span class="text-[11px] font-mono" style="color: var(--text-muted);">252d Annualized</span>
+      <div class="swiss-card p-3.5 sm:p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between gap-1">
+          <span data-i18n="kpi.exp_ret" class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Lợi suất Kỳ vọng E(R)</span>
+          <span data-i18n="kpi.annualized_252" class="text-[10px] font-mono hidden sm:inline" style="color: var(--text-muted);">252 phiên</span>
         </div>
-        <div class="mt-2 flex items-baseline justify-between">
-          <span id="kpi-tan-ret" class="text-2xl font-bold font-mono tracking-tight" style="color: var(--text-primary);">--%</span>
+        <div class="mt-2 flex items-baseline justify-between gap-2">
+          <span id="kpi-tan-ret" class="text-xl sm:text-2xl font-bold font-mono tracking-tight" style="color: var(--text-primary);">--%</span>
           <div class="text-right text-[11px] font-mono" style="color: var(--text-muted);">
             GMV: <span id="kpi-gmv-ret" class="font-semibold" style="color: var(--text-secondary);">--%</span>
             <span class="hidden" id="kpi-tan-var"></span>
@@ -133,13 +164,13 @@
       </div>
 
       <!-- KPI 3: Portfolio Volatility -->
-      <div class="swiss-card p-4 flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Volatility (&sigma;)</span>
-          <span class="text-[11px] font-mono" style="color: var(--text-muted);">Min Risk GMV: <strong id="kpi-gmv-vol" style="color: var(--text-primary);">--%</strong></span>
+      <div class="swiss-card p-3.5 sm:p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between gap-1">
+          <span data-i18n="kpi.volatility" class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Độ biến động (&sigma;)</span>
+          <span class="text-[11px] font-mono hidden sm:inline" style="color: var(--text-muted);">GMV: <strong id="kpi-gmv-vol" style="color: var(--text-primary);">--%</strong></span>
         </div>
-        <div class="mt-2 flex items-baseline justify-between">
-          <span id="kpi-tan-vol" class="text-2xl font-bold font-mono tracking-tight" style="color: var(--text-primary);">--%</span>
+        <div class="mt-2 flex items-baseline justify-between gap-2">
+          <span id="kpi-tan-vol" class="text-xl sm:text-2xl font-bold font-mono tracking-tight" style="color: var(--text-primary);">--%</span>
           <div class="text-right text-[11px] font-mono" style="color: var(--text-muted);">
             &sigma;&sup2;<sub>GMV</sub>: <span id="kpi-gmv-var" class="font-semibold" style="color: var(--text-secondary);">--</span>
           </div>
@@ -147,13 +178,13 @@
       </div>
 
       <!-- KPI 4: Complete Portfolio Allocation y* -->
-      <div class="swiss-card p-4 flex flex-col justify-between">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Capital Allocation (y*)</span>
-          <span class="text-[11px] font-mono" style="color: var(--text-muted);">Utility U*: <strong id="kpi-comp-u" style="color: var(--text-primary);">--</strong></span>
+      <div class="swiss-card p-3.5 sm:p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between gap-1">
+          <span data-i18n="kpi.cap_alloc" class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Phân bổ Vốn Rủi ro (y*)</span>
+          <span class="text-[11px] font-mono hidden sm:inline" style="color: var(--text-muted);">U*: <strong id="kpi-comp-u" style="color: var(--text-primary);">--</strong></span>
         </div>
-        <div class="mt-2 flex items-baseline justify-between">
-          <span id="kpi-comp-y" class="text-2xl font-bold font-mono tracking-tight" style="color: var(--text-primary);">--%</span>
+        <div class="mt-2 flex items-baseline justify-between gap-2">
+          <span id="kpi-comp-y" class="text-xl sm:text-2xl font-bold font-mono tracking-tight" style="color: var(--text-primary);">--%</span>
           <div class="text-right text-[11px] font-mono" style="color: var(--text-muted);">
             E(R<sub>C</sub>): <span id="kpi-comp-ret" class="font-semibold" style="color: var(--text-primary);">--%</span>
             &bull; &sigma;<sub>C</sub>: <span id="kpi-comp-vol" class="font-semibold" style="color: var(--text-secondary);">--%</span>
@@ -163,434 +194,480 @@
       </div>
     </section>
 
-    <!-- Middle Split Workspace: Left Controls (4 cols) + Right Visualizations (8 cols) -->
+    <!-- Middle Split Workspace: Left Controls (Steps 1 & 2) + Right Charts (Step 3) -->
     <section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 
-      <!-- LEFT COLUMN: Universe & Model Parameters -->
-      <div class="lg:col-span-4 swiss-card p-5 space-y-5">
-        <!-- Data Source Segmented Control (Only Live Market & Custom Excel/Manual) -->
+      <!-- LEFT COLUMN: Step 1 & Step 2 -->
+      <div class="lg:col-span-4 swiss-card p-4 sm:p-5 space-y-5">
+        <!-- STEP 1: Asset Universe & 3 Strictly Isolated Data Sources -->
         <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h2 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted);">
-              Asset Universe
-            </h2>
-            <div class="segmented-group">
-              <button id="tab-mode-hayinsights" type="button" class="segmented-btn active" onclick="setInputMode('hayinsights')">
-                Live Market
-              </button>
-              <button id="tab-mode-manual" type="button" class="segmented-btn" onclick="setInputMode('manual')">
-                Excel / Manual
-              </button>
-            </div>
+          <h2 data-i18n="step1.heading" class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);">
+            1. Chọn tài sản &amp; Nguồn dữ liệu
+          </h2>
+
+          <div class="segmented-group w-full grid grid-cols-3" role="tablist" aria-label="Data source mode">
+            <button id="tab-mode-live_market" type="button" role="tab" aria-selected="true" class="segmented-btn active text-center" onclick="setInputMode('live_market')" data-i18n="source.live_market">
+              Thị trường Trực tiếp
+            </button>
+            <button id="tab-mode-uploaded_prices" type="button" role="tab" aria-selected="false" class="segmented-btn text-center" onclick="setInputMode('uploaded_prices')" data-i18n="source.uploaded_prices">
+              File Giá Tải lên
+            </button>
+            <button id="tab-mode-manual_matrix" type="button" role="tab" aria-selected="false" class="segmented-btn text-center" onclick="setInputMode('manual_matrix')" data-i18n="source.manual_matrix">
+              Ma trận Thủ công / Excel
+            </button>
           </div>
 
-          <!-- Sub-panel 1: Live Market (HayInsights API) -->
-          <div id="panel-hayinsights-input" class="space-y-3.5">
-            <!-- Autocomplete Search Input -->
+          <!-- Source Panel 1: Live Market (HayInsights API) -->
+          <div id="panel-live_market-input" class="space-y-3.5">
             <div class="relative" id="ticker-search-wrapper">
-              <label class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">
-                Search Ticker (HOSE / HNX / UPCoM)
+              <label for="inp-ticker-search" data-i18n="live.search_label" class="block text-xs font-medium mb-1.5" style="color: var(--text-secondary);">
+                Tìm kiếm Mã cổ phiếu (HOSE / HNX / UPCoM)
               </label>
               <div class="relative flex items-center">
-                <svg class="w-3.5 h-3.5 absolute left-3 pointer-events-none" style="color: var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="w-3.5 h-3.5 absolute left-3 pointer-events-none" aria-hidden="true" style="color: var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input id="inp-ticker-search" type="text" autocomplete="off"
-                  placeholder="Type 1-2 letters (e.g. V, VC, DG, FP)..."
+                  data-i18n-placeholder="live.search_placeholder"
+                  placeholder="Nhập 1-3 ký tự (vd: FPT, VCB, HPG)..."
                   class="swiss-input w-full pl-8 pr-20 py-1.5 text-xs font-mono" />
                 <button type="button" id="btn-toggle-ticker-dropdown"
                   class="absolute right-1.5 px-2 py-0.5 rounded text-[11px] font-medium swiss-subtle hover:opacity-80 transition"
-                  style="color: var(--text-secondary);">
-                  Browse
+                  style="color: var(--text-secondary);" data-i18n="live.browse">
+                  Danh sách
                 </button>
               </div>
-
-              <!-- Autocomplete Dropdown -->
               <div id="ticker-autocomplete-dropdown"
                 class="hidden absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md swiss-card shadow-lg z-50 divide-y"
                 style="border-color: var(--border-strong);">
-                <!-- Populated by JS -->
               </div>
             </div>
 
             <!-- Selected Portfolio Basket -->
             <div class="swiss-subtle p-3 space-y-2">
-              <div class="flex items-center justify-between text-[11px]">
+              <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
                 <span class="font-medium" style="color: var(--text-secondary);">
-                  Selected (<span id="lbl-basket-count" class="font-mono font-semibold" style="color: var(--accent);">5</span>)
+                  <span data-i18n="live.selected">Đã chọn</span> (<span id="lbl-basket-count" class="font-mono font-semibold" style="color: var(--accent);">5</span>)
                 </span>
                 <div class="flex items-center gap-2" style="color: var(--text-muted);">
-                  <button type="button" onclick="applyQuickBasket(['FPT','MWG','VCB','HPG','VNM'])" class="hover:underline">Core 5</button>
+                  <button type="button" onclick="applyQuickBasket(['FPT','MWG','VCB','HPG','VNM'])" class="hover:underline" data-i18n="live.preset_core">Core 5</button>
                   <span>&middot;</span>
-                  <button type="button" onclick="applyQuickBasket(['VCB','ACB','TCB','MBB','CTG','BID'])" class="hover:underline">Banking</button>
+                  <button type="button" onclick="applyQuickBasket(['VCB','ACB','TCB','MBB','CTG','BID'])" class="hover:underline" data-i18n="live.preset_banking">Ngân hàng</button>
                   <span>&middot;</span>
-                  <button type="button" onclick="applyQuickBasket(['FPT','DGC','GMD','REE','PNJ','VCI'])" class="hover:underline">Growth</button>
+                  <button type="button" onclick="applyQuickBasket(['FPT','DGC','GMD','REE','PNJ','VCI'])" class="hover:underline" data-i18n="live.preset_growth">Tăng trưởng</button>
                 </div>
               </div>
-              <div id="selected-ticker-pills" class="flex flex-wrap gap-1.5 min-h-[28px] items-center">
-                <!-- Populated by JS -->
-              </div>
+              <div id="selected-ticker-pills" class="flex flex-wrap gap-1.5 min-h-[28px] items-center"></div>
               <input id="inp-hayinsights-symbols" type="hidden" value="FPT, MWG, VCB, HPG, VNM" />
             </div>
 
             <!-- Lookback Period & Adjusted Close -->
-            <div class="pt-1 flex items-center justify-between gap-2 text-xs">
-              <div class="flex items-center gap-2">
-                <span style="color: var(--text-secondary);">Window:</span>
-                <select id="sel-hayinsights-range" class="swiss-input px-2 py-1 text-xs font-mono">
-                  <option value="6m">6M (~126d)</option>
-                  <option value="1y" selected>1Y (~252d)</option>
-                  <option value="2y">2Y (~504d)</option>
-                  <option value="3y">3Y (~750d)</option>
-                  <option value="5y">5Y (~1250d)</option>
-                </select>
+            <div class="space-y-1.5 text-xs">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <label for="sel-hayinsights-range" data-i18n="live.window" style="color: var(--text-secondary);">Kỳ dữ liệu:</label>
+                  <select id="sel-hayinsights-range" class="swiss-input px-2 py-1 text-xs font-mono">
+                    <option value="6m">6M (~126d)</option>
+                    <option value="1y" selected>1Y (~252d)</option>
+                    <option value="2y">2Y (~504d)</option>
+                    <option value="3y">3Y (~750d)</option>
+                    <option value="5y">5Y (~1250d)</option>
+                  </select>
+                </div>
+                <label for="chk-hayinsights-adj" class="inline-flex items-center gap-1.5 cursor-pointer text-[11px]" style="color: var(--text-secondary);">
+                  <input id="chk-hayinsights-adj" type="checkbox" checked class="rounded" style="accent-color: var(--accent);" />
+                  <span data-i18n="live.adj_close">Giá điều chỉnh</span>
+                </label>
               </div>
-              <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px]" style="color: var(--text-secondary);">
-                <input id="chk-hayinsights-adj" type="checkbox" checked class="rounded" style="accent-color: var(--accent);" />
-                <span>Adjusted Close</span>
-              </label>
+              <p class="text-[11px]" style="color: var(--text-muted);" data-i18n="live.adj_note">
+                Ước lượng lợi suất dùng giá điều chỉnh; số cổ phiếu Lô 100 dùng giá đóng cửa giao dịch thực tế mới nhất.
+              </p>
             </div>
           </div>
 
-          <!-- Sub-panel 2: Excel Upload & Manual Matrix -->
-          <div id="panel-manual-input" class="hidden space-y-3">
-            <div class="swiss-subtle p-3 flex items-center justify-between gap-2">
+          <!-- Source Panel 2: Uploaded Price Series (Isolated dataset_id) -->
+          <div id="panel-uploaded_prices-input" class="hidden space-y-3">
+            <div class="swiss-subtle p-3 space-y-2.5">
               <div class="text-xs">
-                <div class="font-medium" style="color: var(--text-primary);">Upload Excel / CSV</div>
-                <div class="text-[11px]" style="color: var(--text-muted);">Supports E(R), &sigma;, &rho; matrix or Price series</div>
+                <div class="font-medium" style="color: var(--text-primary);" data-i18n="upload.title">Tải lên Chuỗi Giá Lịch sử (.xlsx / .csv)</div>
+                <div class="text-[11px]" style="color: var(--text-muted);" data-i18n="upload.subtitle">Khớp ngày giao dịch nghiêm ngặt, không điền khuyết giả; mỗi file tạo dataset_id độc lập.</div>
               </div>
-              <label class="btn-outline px-2.5 py-1.5 text-xs cursor-pointer shrink-0">
-                Choose File
-                <input type="file" id="inp-excel-upload" accept=".xlsx,.xls,.csv" class="hidden" />
-              </label>
+              <div class="flex flex-wrap items-center gap-2">
+                <label for="inp-price-upload" class="btn-outline px-2.5 py-1.5 text-xs cursor-pointer inline-flex items-center">
+                  <span data-i18n="upload.choose_file">Chọn File Giá</span>
+                  <input type="file" id="inp-price-upload" accept=".xlsx,.xls,.csv" class="hidden" />
+                </label>
+                <a href="/api/template/prices" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center" data-i18n="upload.dl_price_tpl">Tải Mẫu Giá (.xlsx)</a>
+              </div>
+              <div id="lbl-upload-price-status" class="text-[11px] font-mono p-2 rounded border" style="background-color: var(--bg-card); border-color: var(--border-color); color: var(--text-secondary);" data-i18n="upload.status_empty">
+                Chưa có file chuỗi giá nào được nạp trong phiên này.
+              </div>
+            </div>
+          </div>
+
+          <!-- Source Panel 3: Manual Matrix / Parameters Excel -->
+          <div id="panel-manual_matrix-input" class="hidden space-y-3">
+            <div class="swiss-subtle p-3 space-y-2">
+              <div class="text-xs">
+                <div class="font-medium" style="color: var(--text-primary);" data-i18n="manual.title">Nhập / Tải Ma trận Tham số (252 phiên)</div>
+                <div class="text-[11px]" style="color: var(--text-muted);" data-i18n="manual.subtitle">Lưu ý: Chế độ Ma trận không có chuỗi lịch sử nên sẽ ẩn Wealth Index, MDD &amp; Historical VaR.</div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <label for="inp-excel-upload" class="btn-outline px-2.5 py-1.5 text-xs cursor-pointer inline-flex items-center">
+                  <span data-i18n="manual.upload_matrix">Nạp từ Excel</span>
+                  <input type="file" id="inp-excel-upload" accept=".xlsx,.xls,.csv" class="hidden" />
+                </label>
+                <a href="/api/template/parameters" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center" data-i18n="manual.dl_matrix_tpl">Tải Mẫu Ma trận</a>
+              </div>
             </div>
 
             <div class="flex items-center justify-between text-xs">
-              <span class="font-medium" style="color: var(--text-secondary);">Manual Parameters (252d):</span>
-              <div class="flex items-center gap-1.5">
-                <button type="button" onclick="addManualAssetRow()" class="btn-outline px-2 py-0.5 text-[11px]">+ Add</button>
-                <button type="button" onclick="removeManualAssetRow()" class="btn-outline px-2 py-0.5 text-[11px]">- Remove</button>
+              <span class="text-[11px]" style="color: var(--text-muted);" data-i18n="manual.prices_note">Cột Giá (VND) là tùy chọn: để trống để chỉ tối ưu trọng số.</span>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="addManualAssetRow()" class="btn-outline px-2 py-0.5 text-[11px]" data-i18n="manual.add_row">+ Thêm mã</button>
+                <button type="button" onclick="removeManualAssetRow()" class="btn-outline px-2 py-0.5 text-[11px]" data-i18n="manual.remove_row">- Bớt mã</button>
               </div>
             </div>
 
-            <div class="overflow-x-auto max-h-56 border rounded" style="border-color: var(--border-color);">
-              <table class="w-full text-xs text-left matrix-table font-mono" id="manual-param-table">
-                <!-- Populated by JS -->
-              </table>
+            <div class="table-scroll-wrap max-h-56 border rounded" style="border-color: var(--border-color);">
+              <table class="w-full text-xs text-left matrix-table font-mono" id="manual-param-table"></table>
             </div>
+          </div>
+
+          <!-- Data Provenance Summary -->
+          <div id="panel-data-provenance" class="p-2.5 rounded border text-[11px] font-mono space-y-1" style="background-color: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);">
+            <div class="font-semibold text-[10px] uppercase tracking-wider" style="color: var(--text-muted);" data-i18n="prov.title">Nguồn gốc &amp; Tính toàn vẹn Dữ liệu</div>
+            <div id="prov-summary-body">--</div>
           </div>
         </div>
 
         <hr style="border-color: var(--border-color);" />
 
-        <!-- Optimization Parameters -->
+        <!-- STEP 2: Assumptions & Constraints -->
         <div class="space-y-3.5">
-          <h2 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted);">
-            Optimization Parameters
+          <h2 data-i18n="step2.heading" class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);">
+            2. Giả định &amp; Giới hạn Danh mục
           </h2>
 
-          <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
             <div>
-              <label class="block mb-1 font-medium" style="color: var(--text-secondary);">Risk-Free Rate R<sub>f</sub> (%)</label>
-              <input id="inp-rf" type="number" step="0.1" value="4.5" class="swiss-input w-full px-2.5 py-1.5 font-mono text-xs" />
+              <label for="inp-rf" data-i18n="param.rf" class="block mb-1 font-medium text-[11px]" style="color: var(--text-secondary);">Lãi suất Rf (%)</label>
+              <input id="inp-rf" type="number" step="0.1" value="4.5" class="swiss-input w-full px-2 py-1.5 font-mono text-xs" />
             </div>
             <div>
-              <label class="block mb-1 font-medium" style="color: var(--text-secondary);">Capital NAV (VND)</label>
-              <input id="inp-nav" type="number" step="50000000" value="1000000000" class="swiss-input w-full px-2.5 py-1.5 font-mono text-xs" />
+              <label for="inp-nav" data-i18n="param.nav" class="block mb-1 font-medium text-[11px]" style="color: var(--text-secondary);">Tổng vốn NAV (VND)</label>
+              <input id="inp-nav" type="number" step="50000000" value="1000000000" class="swiss-input w-full px-2 py-1.5 font-mono text-xs" />
+            </div>
+            <div>
+              <label for="inp-buy-fee" data-i18n="param.buy_fee" class="block mb-1 font-medium text-[11px]" style="color: var(--text-secondary);">Phí mua (%)</label>
+              <input id="inp-buy-fee" type="number" step="0.01" min="0" max="5" value="0.15" class="swiss-input w-full px-2 py-1.5 font-mono text-xs" />
             </div>
           </div>
 
-          <!-- Risk Aversion A Slider -->
+          <!-- Risk Aversion Gamma Slider -->
           <div class="swiss-subtle p-3 space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-medium" style="color: var(--text-secondary);">
-                Risk Aversion (A): <strong id="lbl-risk-a" class="font-mono" style="color: var(--accent);">3.0</strong>
-              </span>
-              <button type="button" onclick="toggleQuizModal()" class="text-[11px] font-medium hover:underline" style="color: var(--accent);">
-                Assess Risk Profile
+            <div class="flex items-center justify-between text-xs gap-2">
+              <label for="rng-risk-a" class="font-medium" style="color: var(--text-secondary);">
+                <span data-i18n="param.risk_a">Hệ số Ngại rủi ro (&gamma;)</span>: <strong id="lbl-risk-a" class="font-mono" style="color: var(--accent);">3.0</strong>
+              </label>
+              <button type="button" onclick="toggleQuizModal()" class="text-[11px] font-medium hover:underline shrink-0" style="color: var(--accent);" data-i18n="param.assess_quiz">
+                Khảo sát Khẩu vị Rủi ro
               </button>
             </div>
             <input id="rng-risk-a" type="range" min="1.0" max="10.0" step="0.2" value="3.0" class="w-full cursor-pointer" />
             <div class="flex justify-between text-[10px] font-mono" style="color: var(--text-muted);">
-              <span>1.0 (Aggressive)</span>
-              <span id="quiz-profile-badge">Balanced</span>
-              <span>10.0 (Conservative)</span>
+              <span data-i18n="param.aggressive">1.0 (Ưa rủi ro)</span>
+              <span id="quiz-profile-badge" data-i18n="param.balanced">Cân bằng</span>
+              <span data-i18n="param.conservative">10.0 (Thận trọng)</span>
             </div>
           </div>
 
-          <!-- Weight Bounds (Trần / Sàn Tỷ Trọng Cổ Phiếu) -->
+          <!-- Weight Bounds (Strictly inside Equity Basket, No TT98 Certification Label) -->
           <div id="panel-weight-bounds" class="swiss-subtle p-3 space-y-2.5 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="font-medium" style="color: var(--text-primary);">Stock Weight Limits (w<sub>min</sub>, w<sub>max</sub>)</span>
-              <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-medium" style="color: var(--accent);">
-                <input id="chk-tt98-cap" type="checkbox" onchange="toggleTT98Preset(this.checked)" class="rounded cursor-pointer" style="accent-color: var(--accent);" />
-                <span>TT 98/2020 (Max 20%)</span>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-medium" style="color: var(--text-primary);" data-i18n="bounds.title">Giới hạn Tỷ trọng Cổ phiếu (w<sub>min</sub>, w<sub>max</sub>)</span>
+              <label for="chk-cap-20" class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-medium" style="color: var(--accent);">
+                <input id="chk-cap-20" type="checkbox" onchange="toggleCap20Preset(this.checked)" class="rounded cursor-pointer" style="accent-color: var(--accent);" />
+                <span data-i18n="bounds.preset_20">Trần 20% (trong phần cổ phiếu)</span>
               </label>
             </div>
+            <p class="text-[11px]" style="color: var(--text-muted);" data-i18n="bounds.subtitle">Áp dụng trong nội bộ rổ cổ phiếu (tổng &Sigma;w_i = 100% rổ cổ phiếu).</p>
 
             <div class="grid grid-cols-2 gap-3 pt-0.5">
               <div>
                 <div class="flex justify-between text-[11px] mb-1" style="color: var(--text-secondary);">
-                  <span>Floor (w<sub>min</sub>):</span>
+                  <label for="rng-w-min" data-i18n="bounds.floor">Sàn (w<sub>min</sub>):</label>
                   <strong id="lbl-w-min" class="font-mono">0%</strong>
                 </div>
-                <input id="rng-w-min" type="range" min="0" max="15" step="1" value="0" oninput="onWeightBoundSliderChange()" class="w-full cursor-pointer" />
+                <input id="rng-w-min" type="range" min="0" max="45" step="1" value="0" oninput="onWeightBoundSliderChange()" class="w-full cursor-pointer" />
               </div>
               <div>
                 <div class="flex justify-between text-[11px] mb-1" style="color: var(--text-secondary);">
-                  <span>Ceiling (w<sub>max</sub>):</span>
+                  <label for="rng-w-max" data-i18n="bounds.ceiling">Trần (w<sub>max</sub>):</label>
                   <strong id="lbl-w-max" class="font-mono" style="color: var(--accent);">100%</strong>
                 </div>
-                <input id="rng-w-max" type="range" min="15" max="100" step="5" value="100" oninput="onWeightBoundSliderChange()" class="w-full cursor-pointer" />
+                <input id="rng-w-max" type="range" min="10" max="100" step="5" value="100" oninput="onWeightBoundSliderChange()" class="w-full cursor-pointer" />
               </div>
             </div>
 
             <div id="box-bounds-note" class="hidden text-[11px] p-2 rounded border font-mono" style="border-color: var(--border-strong); color: var(--warning); background-color: var(--bg-card);"></div>
           </div>
 
-          <!-- Cash / Risk-Free Asset Allocation (% NAV) -->
+          <!-- Cash / Risk-Free Asset Allocation -->
           <div class="swiss-subtle p-3 space-y-2.5 text-xs">
-            <div class="flex items-center justify-between gap-2">
-              <span class="font-medium" style="color: var(--text-primary);">Cash / R<sub>f</sub> Allocation</span>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-medium" style="color: var(--text-primary);" data-i18n="cash.title">Phân bổ Tiền mặt / Tài sản Phi rủi ro</span>
               <div class="segmented-group">
-                <button id="btn-cash-mode-bkm" type="button" class="segmented-btn active" onclick="setCashMode('bkm')">
-                  Academic (y*)
+                <button id="btn-cash-mode-utility" type="button" class="segmented-btn active" onclick="setCashMode('utility_no_leverage')" data-i18n="cash.mode_utility">
+                  Theo Utility (&gamma;), Không vay
                 </button>
-                <button id="btn-cash-mode-mandated" type="button" class="segmented-btn" onclick="setCashMode('mandated')">
-                  Fixed Cash %
+                <button id="btn-cash-mode-fixed" type="button" class="segmented-btn" onclick="setCashMode('fixed_cash')" data-i18n="cash.mode_fixed">
+                  Giữ Tiền mặt Cố định (%)
                 </button>
               </div>
             </div>
 
-            <div id="panel-bkm-cash-hint" class="text-[11px]" style="color: var(--text-muted);">
-              Endogenous weight: w<sub>cash</sub> = 1 &minus; y* calibrated via Risk Aversion (A).
+            <div id="panel-utility-cash-hint" class="text-[11px]" style="color: var(--text-muted);" data-i18n="cash.hint_utility">
+              Tỷ trọng tiền mặt nội sinh w_cash = 1 &minus; y* từ tối ưu Utility U = E(R) &minus; 0.5&middot;&gamma;&middot;&sigma;&sup2; (chặn 0% &le; y* &le; 100%).
             </div>
 
-            <div id="panel-mandated-cash" class="hidden space-y-2 pt-1">
-              <div class="flex items-center justify-between">
-                <span class="text-[11px]" style="color: var(--text-secondary);">Target Cash Reserve (% NAV):</span>
+            <div id="panel-fixed-cash" class="hidden space-y-2 pt-1">
+              <div class="flex items-center justify-between gap-2">
+                <label for="inp-mandated-cash" class="text-[11px]" style="color: var(--text-secondary);" data-i18n="cash.target_label">Tỷ trọng Tiền mặt Mục tiêu (% NAV):</label>
                 <div class="flex items-center gap-1">
-                  <input id="inp-mandated-cash" type="number" min="0" max="90" step="1" value="10" onchange="syncMandatedCashInput(this.value)" class="swiss-input w-14 px-1.5 py-0.5 text-right font-mono text-xs" />
+                  <input id="inp-mandated-cash" type="number" min="0" max="100" step="1" value="10" onchange="syncMandatedCashInput(this.value)" class="swiss-input w-16 px-1.5 py-0.5 text-right font-mono text-xs" />
                   <span class="font-mono text-[11px]" style="color: var(--text-muted);">%</span>
                 </div>
               </div>
-              <input id="rng-mandated-cash" type="range" min="0" max="50" step="1" value="10" oninput="syncMandatedCashSlider(this.value)" class="w-full cursor-pointer" />
-              <div class="flex items-center justify-between text-[10px] font-mono" style="color: var(--text-muted);">
-                <button type="button" onclick="syncMandatedCashInput(5); runMVOOptimization();" class="hover:underline">5% Buffer</button>
-                <button type="button" onclick="syncMandatedCashInput(10); runMVOOptimization();" class="hover:underline">10% Standard</button>
-                <button type="button" onclick="syncMandatedCashInput(20); runMVOOptimization();" class="hover:underline">20% Defensive</button>
-                <button type="button" onclick="syncMandatedCashInput(30); runMVOOptimization();" class="hover:underline">30% Tactical</button>
+              <input id="rng-mandated-cash" type="range" min="0" max="100" step="1" value="10" aria-label="Fixed Cash percentage slider" oninput="syncMandatedCashSlider(this.value)" class="w-full cursor-pointer" />
+              <div class="flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono" style="color: var(--text-muted);">
+                <button type="button" onclick="syncMandatedCashInput(5); runMVOOptimization();" class="hover:underline" data-i18n="cash.buffer_5">5% Dự phòng</button>
+                <button type="button" onclick="syncMandatedCashInput(10); runMVOOptimization();" class="hover:underline" data-i18n="cash.buffer_10">10% Tiêu chuẩn</button>
+                <button type="button" onclick="syncMandatedCashInput(20); runMVOOptimization();" class="hover:underline" data-i18n="cash.buffer_20">20% Phòng thủ</button>
+                <button type="button" onclick="syncMandatedCashInput(30); runMVOOptimization();" class="hover:underline" data-i18n="cash.buffer_30">30% Chiến thuật</button>
               </div>
             </div>
           </div>
 
-          <!-- Benchmark Selection & Short-Sales Switch -->
+          <!-- Benchmark & Academic Short-Sales Reference -->
           <div class="grid grid-cols-1 gap-2.5 text-xs">
             <div class="p-2.5 swiss-subtle space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="font-medium" style="color: var(--text-primary);">Benchmark Index</span>
+              <div class="flex items-center justify-between gap-2">
+                <label for="sel-benchmark" class="font-medium" style="color: var(--text-primary);" data-i18n="bm.index">Chỉ số Tham chiếu</label>
                 <select id="sel-benchmark" onchange="onBenchmarkConfigChange(this.value, null)" class="swiss-input px-2 py-1 text-xs font-mono">
                   <option value="VNINDEX" selected>VN-Index (HOSE)</option>
                   <option value="VN30">VN30 Index (Bluechips)</option>
                 </select>
               </div>
-              <div class="flex items-center justify-between pt-1 border-t" style="border-color: var(--border-color);">
-                <span class="text-[11px]" style="color: var(--text-secondary);">Benchmark Horizon</span>
+              <div class="flex items-center justify-between gap-2 pt-1 border-t" style="border-color: var(--border-color);">
+                <label for="sel-benchmark-horizon" class="text-[11px]" style="color: var(--text-secondary);" data-i18n="bm.horizon">Kỳ đối chiếu Benchmark</label>
                 <select id="sel-benchmark-horizon" onchange="onBenchmarkConfigChange(null, this.value)" class="swiss-input px-2 py-1 text-xs font-mono">
-                  <option value="6m">6M (6 Months)</option>
-                  <option value="1y" selected>1Y (1 Year)</option>
-                  <option value="3y">3Y (3 Years)</option>
-                  <option value="5y">5Y (5 Years)</option>
-                  <option value="ytd">YTD (Year-to-Date)</option>
-                  <option value="max">Max (Full History)</option>
+                  <option value="6m">6M</option>
+                  <option value="1y" selected>1Y</option>
+                  <option value="3y">3Y</option>
+                  <option value="5y">5Y</option>
+                  <option value="ytd">YTD</option>
+                  <option value="max">Max</option>
                 </select>
               </div>
             </div>
 
-            <label class="flex items-center justify-between p-2.5 swiss-subtle cursor-pointer text-xs">
+            <label for="chk-allow-short" class="flex items-center justify-between gap-2 p-2.5 swiss-subtle cursor-pointer text-xs">
               <div>
-                <div class="font-medium" style="color: var(--text-primary);">Allow Short-Sales (Unconstrained)</div>
-                <div id="lbl-short-desc" class="text-[11px]" style="color: var(--text-muted);">Long-only (w<sub>i</sub> &ge; 0, Quadratic Programming)</div>
+                <div class="font-medium" style="color: var(--text-primary);" data-i18n="short.title">Bán khống Không ràng buộc (Tham chiếu Học thuật)</div>
+                <div id="lbl-short-desc" class="text-[11px]" style="color: var(--text-muted);" data-i18n="short.desc_long">Long-only (0 &le; w_i &le; 100%, Quadratic Programming)</div>
               </div>
-              <input id="chk-allow-short" type="checkbox" class="w-4 h-4 rounded cursor-pointer" style="accent-color: var(--accent);" />
+              <input id="chk-allow-short" type="checkbox" class="w-4 h-4 rounded cursor-pointer shrink-0" style="accent-color: var(--accent);" />
             </label>
           </div>
 
           <!-- Primary Run Button -->
-          <button id="btn-run-mvo" type="button" class="btn-primary w-full py-2.5 text-xs font-semibold flex items-center justify-center gap-2">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <button id="btn-run-mvo" type="button" class="btn-primary w-full py-2.5 text-xs font-semibold flex items-center justify-center gap-2 touch-target">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
-            <span>Run Optimization</span>
+            <span data-i18n="btn.run">Chạy Tối Ưu Hóa</span>
           </button>
 
           <!-- Status Footer inside Left Panel -->
           <div class="pt-1 flex items-center justify-between text-[11px] font-mono" style="color: var(--text-muted);">
-            <span>Assets: <strong id="lbl-asset-count" style="color: var(--text-primary);">5</strong></span>
-            <span id="lbl-data-source-tag" class="truncate max-w-[210px]">HayInsights Live API</span>
+            <span><span data-i18n="footer.assets">Số tài sản:</span> <strong id="lbl-asset-count" style="color: var(--text-primary);">5</strong></span>
+            <span id="lbl-data-source-tag" class="truncate max-w-[220px]">HayInsights Live API</span>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Charts & Visual Analytics (8 cols) -->
+      <!-- RIGHT COLUMN: Step 3 Charts & Visual Analytics -->
       <div class="lg:col-span-8 flex flex-col justify-between space-y-5">
-        <!-- Chart 1: Efficient Frontier & CAL -->
+        <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+          <h2 data-i18n="step3.heading" class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);">
+            3. Kết quả &amp; Diễn giải Định lượng
+          </h2>
+          <span id="lbl-singleton-note" class="hidden text-[11px] font-mono px-2 py-0.5 rounded border" style="background-color: var(--alert-info-bg); border-color: var(--accent); color: var(--text-primary);"></span>
+        </div>
+
+        <!-- Chart 1: Efficient Frontier & CAL (Single Fullscreen Button) -->
         <div class="swiss-card p-4 sm:p-5 flex flex-col">
           <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2 border-b" style="border-color: var(--border-color);">
             <div>
-              <h2 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-primary);">
-                Efficient Frontier &amp; Capital Allocation Line (CAL)
-              </h2>
-              <p class="text-[11px]" style="color: var(--text-muted);">
-                Mean-Variance Opportunity Set &bull; GMV &bull; Tangency Portfolio &bull; Utility Indifference Curve
+              <h3 data-i18n="chart.frontier_title" class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-primary);">
+                Biên Hiệu Quả &amp; Đường Phân Bổ Vốn (CAL)
+              </h3>
+              <p data-i18n="chart.frontier_sub" class="text-[11px]" style="color: var(--text-muted);">
+                Tập Khả Thi (trong biên) &bull; GMV &bull; Tangency &bull; Đường Bàng Quan Utility (U*)
               </p>
             </div>
             <div class="flex items-center gap-2">
               <span id="chart-mode-label" class="text-[11px] font-mono px-2 py-0.5 rounded swiss-subtle" style="color: var(--text-secondary);">
                 Long-Only (w &ge; 0)
               </span>
-              <button type="button" onclick="openChartFullscreen('frontier')" class="px-2.5 py-1 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);" title="Phóng to toàn màn hình (Fullscreen HD Zoom)">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <button type="button" onclick="openChartFullscreen('frontier')" class="px-2.5 py-1.5 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 touch-target" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);">
+                <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <polyline points="15 3 21 3 21 9" />
                   <polyline points="9 21 3 21 3 15" />
                   <line x1="21" y1="3" x2="14" y2="10" />
                   <line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
-                <span>Fullscreen Zoom</span>
+                <span data-i18n="chart.zoom_btn">Phóng to</span>
               </button>
             </div>
           </div>
-          <div class="relative w-full">
-            <button type="button" onclick="openChartFullscreen('frontier')" class="absolute top-2 right-2 z-10 px-2 py-0.5 text-[11px] font-mono font-medium rounded swiss-card border shadow hover:opacity-100 transition inline-flex items-center gap-1 cursor-pointer opacity-80" style="color: var(--text-primary); border-color: var(--border-strong); background-color: var(--bg-card);" title="Phóng to toàn màn hình">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-              <span>⛶ Zoom</span>
-            </button>
-            <div id="chart-frontier" class="w-full h-[460px]"></div>
+          <div class="w-full">
+            <div id="chart-frontier" class="w-full h-[360px] sm:h-[460px]"></div>
           </div>
         </div>
 
-        <!-- Chart 2: Optimal Portfolio Weights Comparison -->
+        <!-- Chart 2: Optimal & Executed Weights incl. Cash/Rf (Single Fullscreen Button) -->
         <div class="swiss-card p-4 sm:p-5 flex flex-col">
-          <div class="flex items-center justify-between pb-3 mb-2 border-b" style="border-color: var(--border-color);">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2 border-b" style="border-color: var(--border-color);">
             <div>
-              <h2 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-primary);">
-                Optimal Portfolio Weights Allocation
-              </h2>
-              <p class="text-[11px]" style="color: var(--text-muted);">
-                Comparison across GMV, Tangency (Max Sharpe), and Complete Portfolio (C)
+              <h3 data-i18n="chart.weights_title" class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-primary);">
+                So sánh Tỷ trọng Tối ưu &amp; Thực thi (Bao gồm Tiền mặt)
+              </h3>
+              <p data-i18n="chart.weights_sub" class="text-[11px]" style="color: var(--text-muted);">
+                GMV &bull; Tangency &bull; Complete Mục tiêu &bull; Thực thi Lô 100 (Sau phí)
               </p>
             </div>
-            <button type="button" onclick="openChartFullscreen('weights')" class="px-2.5 py-1 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);" title="Phóng to toàn màn hình (Fullscreen HD Zoom)">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <button type="button" onclick="openChartFullscreen('weights')" class="px-2.5 py-1.5 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 touch-target" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);">
+              <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <polyline points="15 3 21 3 21 9" />
                 <polyline points="9 21 3 21 3 15" />
                 <line x1="21" y1="3" x2="14" y2="10" />
                 <line x1="3" y1="21" x2="10" y2="14" />
               </svg>
-              <span>Fullscreen Zoom</span>
+              <span data-i18n="chart.zoom_btn">Phóng to</span>
             </button>
           </div>
-          <div class="relative w-full">
-            <button type="button" onclick="openChartFullscreen('weights')" class="absolute top-2 right-2 z-10 px-2 py-0.5 text-[11px] font-mono font-medium rounded swiss-card border shadow hover:opacity-100 transition inline-flex items-center gap-1 cursor-pointer opacity-80" style="color: var(--text-primary); border-color: var(--border-strong); background-color: var(--bg-card);" title="Phóng to toàn màn hình">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-              <span>⛶ Zoom</span>
-            </button>
-            <div id="chart-weights" class="w-full h-[320px]"></div>
+          <div class="w-full">
+            <div id="chart-weights" class="w-full h-[300px] sm:h-[340px]"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Lower Section: Tabbed Analytical Workbench -->
+    <!-- Step 4: Execution Workbench & Mobile Export Strip -->
     <section class="swiss-card overflow-hidden">
+      <div class="px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-2" style="background-color: var(--bg-card); border-color: var(--border-color);">
+        <h2 data-i18n="step4.heading" class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);">
+          4. Thực thi Lô 100 &amp; Xuất Báo cáo
+        </h2>
+        <div class="flex flex-wrap items-center gap-2 lg:hidden">
+          <button id="btn-export-matrix-mobile" type="button" onclick="exportCurrentMatrixData()" class="btn-outline px-2.5 py-1.5 text-xs touch-target" data-i18n="nav.export_matrix">Xuất Ma trận</button>
+          <button id="btn-export-prices-mobile" type="button" onclick="exportCurrentPriceData()" class="btn-outline px-2.5 py-1.5 text-xs touch-target" data-i18n="nav.export_prices">Xuất Dữ liệu Giá</button>
+        </div>
+      </div>
+
       <!-- Tab Navigation Header -->
       <div class="flex flex-wrap items-center justify-between px-4 border-b" style="border-color: var(--border-color); background-color: var(--bg-subtle);">
-        <div class="flex items-center space-x-1 overflow-x-auto">
-          <button type="button" id="tab-btn-execution" onclick="switchLowerTab('execution')" class="tab-underline active">
-            01. Holdings &amp; Lot 100
+        <div class="flex items-center space-x-1 overflow-x-auto" role="tablist" aria-label="Analytical Workbench Tabs">
+          <button type="button" id="tab-btn-execution" role="tab" aria-selected="true" onclick="switchLowerTab('execution')" class="tab-underline active" data-i18n="tab.execution">
+            01. Nắm giữ &amp; Lô 100
           </button>
-          <button type="button" id="tab-btn-benchmark" onclick="switchLowerTab('benchmark')" class="tab-underline">
-            02. Benchmark (VN-Index / VN30)
+          <button type="button" id="tab-btn-benchmark" role="tab" aria-selected="false" onclick="switchLowerTab('benchmark')" class="tab-underline" data-i18n="tab.benchmark">
+            02. Đối chiếu Benchmark
           </button>
-          <button type="button" id="tab-btn-stress" onclick="switchLowerTab('stress')" class="tab-underline">
-            03. Stress Testing &amp; VaR
+          <button type="button" id="tab-btn-stress" role="tab" aria-selected="false" onclick="switchLowerTab('stress')" class="tab-underline" data-i18n="tab.stress">
+            03. Stress Test &amp; VaR / ES
           </button>
-          <button type="button" id="tab-btn-moments" onclick="switchLowerTab('moments')" class="tab-underline">
-            04. Asset Moments &amp; Covariance
+          <button type="button" id="tab-btn-moments" role="tab" aria-selected="false" onclick="switchLowerTab('moments')" class="tab-underline" data-i18n="tab.moments">
+            04. Tham số &amp; Hiệp phương sai
           </button>
-          <button type="button" id="tab-btn-algebra" onclick="switchLowerTab('algebra')" class="tab-underline">
-            05. Merton (1972) Algebra
+          <button type="button" id="tab-btn-algebra" role="tab" aria-selected="false" onclick="switchLowerTab('algebra')" class="tab-underline" data-i18n="tab.algebra">
+            05. Đại số Merton (Tham chiếu)
           </button>
         </div>
         <div id="lbl-execution-summary" class="text-[11px] font-mono py-2" style="color: var(--text-muted);"></div>
       </div>
 
-      <!-- Tab Content 1: Holdings & Lot 100 Order Sizing -->
-      <div id="tab-panel-execution" class="p-4 sm:p-5">
-        <div class="overflow-x-auto">
-          <table class="data-table text-left font-mono" id="tbl-weights-lot100">
-            <!-- Populated by JS -->
-          </table>
+      <!-- Tab Content 1: Holdings & Lot 100 -->
+      <div id="tab-panel-execution" class="p-4 sm:p-5 space-y-3.5">
+        <div id="exec-disabled-banner" class="hidden p-3 rounded border text-xs font-medium" style="background-color: var(--alert-warning-bg); border-color: var(--warning); color: var(--text-primary);"></div>
+        <div id="exec-drift-banner" class="hidden p-3 rounded border text-xs font-mono" style="background-color: var(--alert-warning-bg); border-color: var(--warning); color: var(--text-primary);"></div>
+        <div id="exec-reconciliation-bar" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono"></div>
+
+        <!-- Mobile Execution Summary Cards -->
+        <div id="mobile-execution-cards" class="md:hidden space-y-2.5"></div>
+
+        <!-- Desktop & Horizontal Sticky Table -->
+        <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
+          <table class="data-table text-left font-mono" id="tbl-weights-lot100"></table>
         </div>
       </div>
 
-      <!-- Tab Content 2: Benchmark Comparison (VN-Index / VN30) Bloomberg Terminal Grade -->
+      <!-- Tab Content 2: Benchmark Comparison -->
       <div id="tab-panel-benchmark" class="hidden p-4 sm:p-5 space-y-4">
-        <!-- Bloomberg Terminal Interactive Control Bar -->
+        <div id="bm-unavailable-banner" class="hidden p-3.5 rounded border text-xs space-y-1" style="background-color: var(--alert-warning-bg); border-color: var(--warning); color: var(--text-primary);">
+          <div class="font-bold" data-i18n="bm.unavailable_title">Không khả dụng đối chiếu lịch sử Benchmark</div>
+          <div id="bm-unavailable-msg"></div>
+        </div>
+
+        <div id="bm-methodology-banner" class="p-2.5 rounded border text-[11px] font-mono space-y-1" style="background-color: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);">
+          <div data-i18n="bm.methodology_note">Giả định: Chỉ số Price Return Index • Danh mục cổ phiếu Tái cân bằng Hàng ngày • Đánh giá In-Sample.</div>
+          <div id="bm-horizon-warning" class="hidden font-semibold" style="color: var(--warning);"></div>
+        </div>
+
         <div class="p-3.5 swiss-subtle rounded-lg space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);">
-                Institutional Benchmark Attribution
+              <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-primary);" data-i18n="bm.title">
+                Đánh giá Hiệu suất So với Benchmark
               </span>
               <span id="lbl-benchmark-badge" class="text-[11px] font-mono px-2 py-0.5 rounded border" style="color: var(--accent); border-color: var(--border-color); background-color: var(--bg-card);">
                 vs. VNINDEX (1Y)
               </span>
-              <span id="bm-attribution-spinner" class="hidden text-[11px] font-mono animate-pulse" style="color: var(--accent);">
-                &bull; Recalculating Attribution...
+              <span id="bm-attribution-spinner" class="hidden text-[11px] font-mono animate-pulse" style="color: var(--accent);" data-i18n="bm.recalc">
+                &bull; Đang tính toán lại...
               </span>
             </div>
 
-            <!-- Benchmark Index Selection Pills -->
             <div class="flex items-center gap-1.5 text-xs">
-              <span class="text-[11px]" style="color: var(--text-muted);">Benchmark:</span>
+              <span class="text-[11px]" style="color: var(--text-muted);" data-i18n="bm.label">Tham chiếu:</span>
               <div class="segmented-group">
-                <button type="button" id="bm-pill-idx-vnindex" onclick="setBenchmarkIndex('VNINDEX')" class="segmented-btn active">
-                  VN-Index (HOSE)
-                </button>
-                <button type="button" id="bm-pill-idx-vn30" onclick="setBenchmarkIndex('VN30')" class="segmented-btn">
-                  VN30 Index
-                </button>
+                <button type="button" id="bm-pill-idx-vnindex" onclick="setBenchmarkIndex('VNINDEX')" class="segmented-btn active">VN-Index (HOSE)</button>
+                <button type="button" id="bm-pill-idx-vn30" onclick="setBenchmarkIndex('VN30')" class="segmented-btn">VN30 Index</button>
               </div>
-              <!-- Hidden select for fallback sync -->
-              <select id="sel-benchmark-tab" class="hidden">
+              <select id="sel-benchmark-tab" class="hidden" aria-label="Benchmark Index Tab Selector">
                 <option value="VNINDEX" selected>VN-Index (HOSE)</option>
-                <option value="VN30">VN30 Index (Bluechips)</option>
+                <option value="VN30">VN30 Index</option>
               </select>
             </div>
           </div>
 
-          <!-- Time Horizon Institutional Quick Pills [6M] [1Y] [3Y] [5Y] [YTD] [MAX] -->
           <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t" style="border-color: var(--border-color);">
-            <div class="flex items-center gap-2">
-              <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-                Attribution Horizon:
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="bm.horizon_label">
+                Kỳ đối chiếu:
               </span>
-              <div class="inline-flex rounded-md p-0.5 swiss-card border" style="border-color: var(--border-color);">
-                <button type="button" id="bm-pill-hz-6m" onclick="setBenchmarkHorizon('6m')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition" style="color: var(--text-secondary);">6M</button>
+              <div class="inline-flex flex-wrap rounded-md p-0.5 swiss-card border" style="border-color: var(--border-color);">
+                <button type="button" id="bm-pill-hz-6m" onclick="setBenchmarkHorizon('6m')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition">6M</button>
                 <button type="button" id="bm-pill-hz-1y" onclick="setBenchmarkHorizon('1y')" class="px-2.5 py-1 text-xs font-mono rounded font-semibold active" style="background-color: var(--accent); color: #ffffff;">1Y</button>
-                <button type="button" id="bm-pill-hz-3y" onclick="setBenchmarkHorizon('3y')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition" style="color: var(--text-secondary);">3Y</button>
-                <button type="button" id="bm-pill-hz-5y" onclick="setBenchmarkHorizon('5y')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition" style="color: var(--text-secondary);">5Y</button>
-                <button type="button" id="bm-pill-hz-ytd" onclick="setBenchmarkHorizon('ytd')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition" style="color: var(--text-secondary);">YTD</button>
-                <button type="button" id="bm-pill-hz-max" onclick="setBenchmarkHorizon('max')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition" style="color: var(--text-secondary);">MAX</button>
+                <button type="button" id="bm-pill-hz-3y" onclick="setBenchmarkHorizon('3y')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition">3Y</button>
+                <button type="button" id="bm-pill-hz-5y" onclick="setBenchmarkHorizon('5y')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition">5Y</button>
+                <button type="button" id="bm-pill-hz-ytd" onclick="setBenchmarkHorizon('ytd')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition">YTD</button>
+                <button type="button" id="bm-pill-hz-max" onclick="setBenchmarkHorizon('max')" class="px-2.5 py-1 text-xs font-mono rounded hover:opacity-80 transition">MAX</button>
               </div>
-              <!-- Hidden select for fallback sync -->
-              <select id="sel-benchmark-horizon-tab" class="hidden">
+              <select id="sel-benchmark-horizon-tab" class="hidden" aria-label="Benchmark Horizon Tab Selector">
                 <option value="6m">6M</option>
                 <option value="1y" selected>1Y</option>
                 <option value="3y">3Y</option>
@@ -599,13 +676,10 @@
                 <option value="max">Max</option>
               </select>
             </div>
-            <div id="lbl-bm-period-meta" class="text-[11px] font-mono" style="color: var(--text-muted);">
-              Historical Synchronized Returns
-            </div>
+            <div id="lbl-bm-period-meta" class="text-[11px] font-mono" style="color: var(--text-muted);">--</div>
           </div>
         </div>
 
-        <!-- Terminal 5-KPI Attribution Strip -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="benchmark-kpi-strip">
           <div class="swiss-card p-3 flex flex-col justify-between">
             <span class="text-[10px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Active Return (&alpha;)</span>
@@ -618,7 +692,7 @@
             <span class="text-[10px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Portfolio Beta (&beta;)</span>
             <div class="mt-1 flex items-baseline justify-between">
               <span id="bm-kpi-beta" class="text-lg font-bold font-mono" style="color: var(--accent);">--</span>
-              <span id="bm-kpi-beta-tag" class="text-[10px] font-mono px-1 rounded swiss-subtle" style="color: var(--text-secondary);">Market</span>
+              <span id="bm-kpi-beta-tag" class="text-[10px] font-mono px-1 rounded swiss-subtle" style="color: var(--text-secondary);">--</span>
             </div>
           </div>
           <div class="swiss-card p-3 flex flex-col justify-between">
@@ -644,126 +718,109 @@
           </div>
         </div>
 
-        <!-- Detailed Scorecard Table + Cumulative Chart -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           <div class="lg:col-span-5 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-                Relative Performance Scorecard (Alpha / Beta / IR)
-              </h3>
-            </div>
-            <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
-              <table class="w-full text-xs matrix-table font-mono" id="tbl-benchmark-scorecard">
-                <!-- Populated by JS -->
-              </table>
+            <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
+              <table class="w-full text-xs matrix-table font-mono" id="tbl-benchmark-scorecard"></table>
             </div>
           </div>
 
           <div class="lg:col-span-7 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-                  Cumulative Wealth Index (Normalized Base = 100)
-                </h3>
-                <span class="text-[11px] font-mono" style="color: var(--text-muted);">
-                  Tangency Portfolio vs. Benchmark
-                </span>
-              </div>
-              <button type="button" onclick="openChartFullscreen('benchmark')" class="px-2.5 py-1 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);" title="Phóng to toàn màn hình (Fullscreen HD Zoom)">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="bm.wealth_title">
+                Tăng trưởng Tích lũy Chuẩn hóa (Base = 100)
+              </h3>
+              <button type="button" onclick="openChartFullscreen('benchmark')" class="px-2.5 py-1.5 text-xs font-semibold rounded-md border shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer hover:opacity-90 touch-target" style="background-color: var(--accent-soft); border-color: var(--accent); color: var(--accent);">
+                <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
-                <span>Fullscreen Zoom</span>
+                <span data-i18n="chart.zoom_btn">Phóng to</span>
               </button>
             </div>
-            <div class="border rounded p-2 relative" style="border-color: var(--border-color); background-color: var(--bg-card);">
-              <button type="button" onclick="openChartFullscreen('benchmark')" class="absolute top-3.5 right-3.5 z-10 px-2 py-0.5 text-[11px] font-mono font-medium rounded swiss-card border shadow hover:opacity-100 transition inline-flex items-center gap-1 cursor-pointer opacity-80" style="color: var(--text-primary); border-color: var(--border-strong); background-color: var(--bg-card);" title="Phóng to toàn màn hình">
-                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-                </svg>
-                <span>⛶ Zoom</span>
-              </button>
-              <div id="chart-benchmark-cum" class="w-full h-[320px]"></div>
+            <div class="border rounded p-2" style="border-color: var(--border-color); background-color: var(--bg-card);">
+              <div id="chart-benchmark-cum" class="w-full h-[300px] sm:h-[320px]"></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Tab Content 3: Stress Testing & Tail Risk (VaR / CVaR) -->
-      <div id="tab-panel-stress" class="hidden p-4 sm:p-5 space-y-5">
-        <!-- 4 Tail Risk Metric Summary Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5" id="stress-var-cards">
-          <!-- Populated by JS -->
+      <!-- Tab Content 3: Stress Testing & VaR / ES -->
+      <div id="tab-panel-stress" class="hidden p-4 sm:p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="font-semibold" style="color: var(--text-secondary);" data-i18n="stress.basis_label">Cơ sở đánh giá Rủi ro:</span>
+            <div class="segmented-group">
+              <button type="button" id="btn-basis-target" onclick="setRiskReportBasis('target_complete')" class="segmented-btn active" data-i18n="stress.basis_target">Danh mục Mục tiêu (Complete)</button>
+              <button type="button" id="btn-basis-exec" onclick="setRiskReportBasis('executed_post_fee')" class="segmented-btn" data-i18n="stress.basis_exec">Danh mục Thực thi Lô 100 (Sau phí)</button>
+            </div>
+          </div>
+          <span id="lbl-stress-method" class="text-[11px] font-mono" style="color: var(--text-muted);"></span>
         </div>
 
-        <!-- Historical Scenarios Table -->
-        <div class="space-y-2">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-              Vietnam Stock Market Historical Crisis &amp; Shock Scenarios
-            </h3>
-            <span id="lbl-stress-method" class="text-[11px] font-mono" style="color: var(--text-muted);"></span>
-          </div>
-          <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
-            <table class="data-table text-left font-mono" id="tbl-stress-scenarios">
-              <!-- Populated by JS -->
-            </table>
+        <div id="stress-warnings-banner" class="hidden p-2.5 rounded border text-[11px] font-mono" style="background-color: var(--alert-warning-bg); border-color: var(--warning); color: var(--text-primary);"></div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5" id="stress-var-cards"></div>
+
+        <div id="stress-scenarios-section" class="space-y-2">
+          <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="stress.scenarios_title">
+            Kịch bản Khủng hoảng &amp; Cú sốc Thị trường Việt Nam
+          </h3>
+          <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
+            <table class="data-table text-left font-mono" id="tbl-stress-scenarios"></table>
           </div>
         </div>
       </div>
 
-      <!-- Tab Content 2: Asset Moments, Covariance & Correlation -->
+      <!-- Tab Content 4: Asset Moments & Covariance -->
       <div id="tab-panel-moments" class="hidden p-4 sm:p-5 space-y-5">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div class="lg:col-span-5 space-y-2">
-            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-              Asset Return, Volatility &amp; Sharpe (252d)
+            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="moments.stats_title">
+              Thống kê Lợi suất, CAGR, Biến động &amp; Giá khớp
             </h3>
-            <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
+            <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
               <table class="w-full text-xs matrix-table font-mono" id="tbl-asset-stats"></table>
             </div>
           </div>
           <div class="lg:col-span-7 space-y-2">
-            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-              Correlation Matrix (P)
+            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="moments.corr_title">
+              Ma trận Tương quan (P)
             </h3>
-            <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
+            <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
               <table class="w-full text-xs matrix-table font-mono" id="tbl-corr-matrix"></table>
             </div>
           </div>
         </div>
 
         <div class="space-y-2">
-          <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-            Annualized Covariance Matrix (&Sigma; = 252 &times; &Sigma;<sub>daily</sub>)
+          <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="moments.cov_title">
+            Ma trận Hiệp phương sai Quy năm (&Sigma; = 252 &times; &Sigma;<sub>daily</sub>)
           </h3>
-          <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
+          <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
             <table class="w-full text-xs matrix-table font-mono" id="tbl-cov-matrix"></table>
           </div>
         </div>
       </div>
 
-      <!-- Tab Content 3: Merton (1972) Matrix Algebra -->
-      <div id="tab-panel-algebra" class="hidden p-4 sm:p-5 space-y-5">
+      <!-- Tab Content 5: Merton (1972) Theoretical Unconstrained Reference -->
+      <div id="tab-panel-algebra" class="hidden p-4 sm:p-5 space-y-4">
+        <div id="algebra-status-banner" class="p-3 rounded border text-xs font-medium" style="background-color: var(--alert-info-bg); border-color: var(--accent); color: var(--text-primary);"></div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div class="lg:col-span-7 space-y-2">
             <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
               Inverse Covariance Matrix (&Sigma;<sup>-1</sup>)
             </h3>
-            <div class="overflow-x-auto border rounded" style="border-color: var(--border-color);">
+            <div class="table-scroll-wrap border rounded" style="border-color: var(--border-color);">
               <table class="w-full text-xs matrix-table font-mono" id="tbl-invcov-matrix"></table>
             </div>
           </div>
           <div class="lg:col-span-5 space-y-2">
-            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">
-              Merton (1972) Scalars &amp; Closed-Form Identities
+            <h3 class="text-xs font-semibold uppercase tracking-wider" style="color: var(--text-secondary);" data-i18n="algebra.title">
+              Đại số Ma trận Merton (1972) &mdash; Tham chiếu Lý thuyết
             </h3>
-            <div id="merton-scalars-box" class="grid grid-cols-2 gap-2.5 font-mono text-xs">
-              <!-- Populated by JS -->
-            </div>
-            <div id="merton-formulas-note" class="p-3 rounded swiss-subtle text-xs space-y-1.5 font-mono" style="color: var(--text-secondary);">
-              <!-- Populated by JS -->
-            </div>
+            <div id="merton-scalars-box" class="grid grid-cols-2 gap-2.5 font-mono text-xs"></div>
+            <div id="merton-formulas-note" class="p-3 rounded swiss-subtle text-xs space-y-1.5 font-mono" style="color: var(--text-secondary);"></div>
           </div>
         </div>
       </div>
@@ -771,43 +828,44 @@
 
   </main>
 
-  <!-- Minimalist Modal for Risk Tolerance Assessment Quiz -->
-  <div id="quiz-box-panel" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+  <!-- Modal: Risk Tolerance Quiz -->
+  <div id="quiz-box-panel" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="quiz-modal-title">
     <div class="swiss-card max-w-2xl w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b" style="border-color: var(--border-color);">
+      <div class="flex items-center justify-between pb-3 border-b gap-2" style="border-color: var(--border-color);">
         <div>
-          <h3 class="text-sm font-semibold" style="color: var(--text-primary);">
-            Investor Risk Tolerance Assessment
+          <h3 id="quiz-modal-title" class="text-sm font-semibold" style="color: var(--text-primary);" data-i18n="quiz.title">
+            Khảo sát Khẩu vị Rủi ro Nhà đầu tư
           </h3>
-          <p class="text-xs" style="color: var(--text-muted);">
-            Answer 4 questions to calibrate your risk aversion coefficient A in U = E(R) - 0.5 &times; A &times; &sigma;&sup2;
+          <p class="text-xs" style="color: var(--text-muted);" data-i18n="quiz.subtitle">
+            Trả lời đầy đủ 4 câu hỏi để quy đổi sang hệ số ngại rủi ro &gamma;
           </p>
         </div>
-        <button type="button" onclick="toggleQuizModal()" class="btn-outline px-2 py-1 text-xs">Close</button>
+        <button id="btn-quiz-close" type="button" onclick="toggleQuizModal()" class="btn-outline px-3 py-1.5 text-xs touch-target" data-i18n="quiz.close">Đóng</button>
       </div>
 
-      <div id="quiz-questions-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <!-- Populated by JS -->
-      </div>
+      <div id="quiz-validation-error" class="hidden p-2.5 rounded border text-xs font-medium" role="alert" style="background-color: var(--alert-danger-bg); border-color: var(--danger); color: var(--danger);"></div>
 
-      <div class="pt-3 border-t flex items-center justify-between gap-3" style="border-color: var(--border-color);">
-        <div id="quiz-result-summary" class="text-xs" style="color: var(--text-secondary);">
-          Select your answers and click Apply to calibrate A.
+      <div id="quiz-questions-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs"></div>
+
+      <div id="quiz-mapping-note" class="p-2.5 rounded border text-[11px] font-mono space-y-1" style="background-color: var(--bg-subtle); border-color: var(--border-color); color: var(--text-secondary);"></div>
+
+      <div class="pt-3 border-t flex flex-wrap items-center justify-between gap-3" style="border-color: var(--border-color);">
+        <div id="quiz-result-summary" class="text-xs" style="color: var(--text-secondary);" data-i18n="quiz.prompt">
+          Vui lòng chọn đáp án cho cả 4 câu hỏi rồi bấm Áp dụng.
         </div>
-        <button type="button" onclick="submitRiskQuiz()" class="btn-primary px-4 py-1.5 text-xs shrink-0">
-          Apply Risk Profile
+        <button type="button" onclick="submitRiskQuiz()" class="btn-primary px-4 py-2 text-xs shrink-0 touch-target" data-i18n="quiz.apply">
+          Áp dụng Khẩu vị Rủi ro
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Interactive High-Definition Fullscreen Chart Modal -->
-  <div id="modal-chart-fullscreen" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-5 transition-opacity">
-    <div class="swiss-card w-full h-full max-w-[96vw] max-h-[94vh] flex flex-col p-4 sm:p-6 shadow-2xl rounded-xl overflow-hidden border" style="border-color: var(--border-strong);">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between pb-3 mb-2 border-b shrink-0" style="border-color: var(--border-color);">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded flex items-center justify-center bg-navy-600/20 text-navy-500">
+  <!-- Modal: Responsive High-Definition Fullscreen Chart Inspection -->
+  <div id="modal-chart-fullscreen" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-5 transition-opacity" role="dialog" aria-modal="true" aria-labelledby="modal-fullscreen-title">
+    <div class="swiss-card w-full h-full max-w-[98vw] sm:max-w-[96vw] max-h-[95vh] flex flex-col p-3 sm:p-6 shadow-2xl rounded-xl overflow-hidden border" style="border-color: var(--border-strong);">
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2 border-b shrink-0" style="border-color: var(--border-color);">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded flex items-center justify-center bg-navy-600/20 text-navy-500 shrink-0" aria-hidden="true">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 3 21 3 21 9" />
               <polyline points="9 21 3 21 3 15" />
@@ -815,36 +873,36 @@
               <line x1="3" y1="21" x2="10" y2="14" />
             </svg>
           </div>
-          <div>
-            <h2 id="modal-fullscreen-title" class="text-sm sm:text-base font-bold tracking-tight" style="color: var(--text-primary);">
+          <div class="min-w-0">
+            <h2 id="modal-fullscreen-title" class="text-xs sm:text-base font-bold tracking-tight truncate" style="color: var(--text-primary);">
               Chart Fullscreen Inspection
             </h2>
-            <p id="modal-fullscreen-subtitle" class="text-xs" style="color: var(--text-muted);">
-              Interactive inspection with zoom, pan, hover tooltips, and data filtering
+            <p id="modal-fullscreen-subtitle" class="text-[11px] sm:text-xs truncate" style="color: var(--text-muted);" data-i18n="modal.subtitle">
+              Interactive inspection
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button type="button" onclick="resetFullscreenChartPlot()" class="btn-outline px-2.5 py-1 text-xs inline-flex items-center gap-1.5" title="Reset view zoom to initial framing">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btn-fs-reset" type="button" onclick="resetFullscreenChartPlot()" class="btn-outline px-2.5 py-1.5 text-xs inline-flex items-center gap-1.5 touch-target">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
             </svg>
-            <span>Reset View</span>
+            <span data-i18n="modal.reset">Đặt lại Góc nhìn</span>
           </button>
-          <button type="button" onclick="closeChartFullscreen()" class="btn-outline px-3 py-1 text-xs font-semibold hover:bg-rose-500/10 hover:text-rose-500 transition" title="Close (or press Esc)">
-            <span>&times; Close (Esc)</span>
+          <button id="btn-fs-close" type="button" onclick="closeChartFullscreen()" class="btn-outline px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/10 hover:text-rose-500 transition touch-target" data-i18n="modal.close">
+            &times; Đóng (Esc)
           </button>
         </div>
       </div>
 
-      <!-- Modal Canvas (Takes all remaining flex height) -->
       <div class="flex-1 w-full relative min-h-0">
         <div id="chart-fullscreen-plot" class="w-full h-full"></div>
       </div>
     </div>
   </div>
 
-  <script src="/static/textbook_mvo.js?v=2.4.4"></script>
+  <script src="/static/i18n.js?v=2.5.0"></script>
+  <script src="/static/textbook_mvo.js?v=2.5.0"></script>
 </body>
 </html>

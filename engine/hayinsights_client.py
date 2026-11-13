@@ -13,9 +13,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 BASE_URL = "https://api-v2.hayinsights.com/openapi/v1"
@@ -395,17 +397,32 @@ def fetch_multi_equity_dataset(
     Fetch multiple equities concurrently from HayInsights API, align trading dates,
     and return aligned DataFrames for prices, trading volumes, raw close prices, and
     latest unadjusted closing prices (for HOSE/HNX order lot sizing).
+    Never silently deduplicates repeated tickers or fills missing prices with zero-return rows.
     """
-    clean_syms = []
+    clean_syms: list[str] = []
+    seen_syms: set[str] = set()
+    duplicate_syms: list[str] = []
     for s in symbols:
-        s_up = s.strip().upper()
-        if s_up and s_up not in clean_syms:
+        s_up = str(s).strip().upper()
+        if not s_up:
+            continue
+        if s_up in seen_syms:
+            if s_up not in duplicate_syms:
+                duplicate_syms.append(s_up)
+        else:
+            seen_syms.add(s_up)
             clean_syms.append(s_up)
+
+    if duplicate_syms:
+        raise ValueError(
+            f"Danh sách mã cổ phiếu bị trùng lặp: {', '.join(duplicate_syms)}. Vui lòng loại bỏ mã trùng."
+        )
 
     if len(clean_syms) < 2:
         raise ValueError("Vui lòng chọn hoặc nhập ít nhất 2 mã cổ phiếu hợp lệ để tối ưu hóa danh mục.")
 
     rng_req = (range_str or "1y").strip().lower()
+    fetched_at = datetime.now().isoformat(timespec="seconds")
     results: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
 
@@ -428,12 +445,18 @@ def fetch_multi_equity_dataset(
     raw_series_list = []
     vol_series_list = []
     latest_raw_prices: dict[str, float] = {}
+    latest_price_dates: dict[str, str] = {}
+    raw_session_counts: dict[str, int] = {}
 
     for sym in clean_syms:
         payload = results[sym]
         points = payload["data"]["points"]
         df_sym = pd.DataFrame(points)
-        df_sym["date"] = pd.to_datetime(df_sym["date"])
+        if "date" not in df_sym.columns or "close" not in df_sym.columns:
+            raise ValueError(f"Dữ liệu giá của mã '{sym}' thiếu cột 'date' hoặc 'close'.")
+        df_sym["date"] = pd.to_datetime(df_sym["date"], errors="coerce")
+        if df_sym["date"].isna().any():
+            raise ValueError(f"Mã '{sym}' có ngày giao dịch không hợp lệ trong chuỗi giá.")
         df_sym = df_sym.sort_values("date").drop_duplicates(subset=["date"], keep="last")
 
         price_col = "adjustedClose" if (use_adjusted and "adjustedClose" in df_sym.columns) else "close"
@@ -444,20 +467,37 @@ def fetch_multi_equity_dataset(
         else:
             df_sym["volume"] = 0.0
 
-        df_sym = df_sym.dropna(subset=[price_col, "close"])
-        df_sym = df_sym.set_index("date")
+        invalid_mask = (
+            (~np.isfinite(df_sym[price_col].to_numpy(dtype=float)))
+            | (~np.isfinite(df_sym["close"].to_numpy(dtype=float)))
+            | (df_sym[price_col] <= 0)
+            | (df_sym["close"] <= 0)
+        )
+        if invalid_mask.any():
+            raise ValueError(
+                f"Mã '{sym}' có {int(invalid_mask.sum())} phiên chứa giá <= 0 hoặc NaN/Inf ở cột {price_col}/close."
+            )
 
+        df_sym = df_sym.set_index("date")
+        raw_session_counts[sym] = int(len(df_sym))
         latest_raw_prices[sym] = float(df_sym["close"].iloc[-1])
+        latest_price_dates[sym] = str(df_sym.index[-1].date())
 
         adj_series_list.append(df_sym[price_col].rename(sym))
         raw_series_list.append(df_sym["close"].rename(sym))
         vol_series_list.append(df_sym["volume"].rename(sym))
+
+    union_idx = adj_series_list[0].index
+    for s_idx in adj_series_list[1:]:
+        union_idx = union_idx.union(s_idx.index)
+    union_idx = union_idx.sort_values()
 
     df_aligned = pd.concat(adj_series_list, axis=1, join="inner").dropna(how="any").sort_index()
     df_raw_aligned = pd.concat(raw_series_list, axis=1, join="inner").reindex(df_aligned.index)
     df_vol_aligned = pd.concat(vol_series_list, axis=1, join="inner").reindex(df_aligned.index).fillna(0.0)
 
     # Apply calendar window slicing for derived ranges ('2y' or 'ytd')
+    union_idx_window = union_idx
     if len(df_aligned) > 10:
         last_dt = df_aligned.index[-1]
         if rng_req == "2y":
@@ -467,6 +507,7 @@ def fetch_multi_equity_dataset(
                 df_aligned = sliced
                 df_raw_aligned = df_raw_aligned.reindex(df_aligned.index)
                 df_vol_aligned = df_vol_aligned.reindex(df_aligned.index)
+                union_idx_window = union_idx[union_idx >= cutoff]
         elif rng_req == "ytd":
             cutoff = pd.Timestamp(year=last_dt.year, month=1, day=1)
             sliced = df_aligned[df_aligned.index >= cutoff]
@@ -474,11 +515,14 @@ def fetch_multi_equity_dataset(
                 df_aligned = sliced
                 df_raw_aligned = df_raw_aligned.reindex(df_aligned.index)
                 df_vol_aligned = df_vol_aligned.reindex(df_aligned.index)
+                union_idx_window = union_idx[union_idx >= cutoff]
 
     if len(df_aligned) < 10:
         raise ValueError(
             f"Số phiên giao dịch trùng khớp giữa các mã ({', '.join(clean_syms)}) quá ít ({len(df_aligned)} phiên)."
         )
+
+    dropped_days_count = max(0, int(len(union_idx_window) - len(df_aligned)))
 
     df_aligned.index.name = "Date"
     df_raw_aligned.index.name = "Date"
@@ -493,9 +537,16 @@ def fetch_multi_equity_dataset(
         "df_raw_prices": df_raw_aligned,
         "df_volumes": df_vol_aligned,
         "latest_raw_prices": latest_raw_prices,
+        "latest_price_dates": latest_price_dates,
+        "raw_session_counts": raw_session_counts,
+        "aligned_price_sessions": int(len(df_aligned)),
+        "aligned_sessions": int(len(df_aligned) - 1),
+        "dropped_days_count": dropped_days_count,
+        "fetched_at": fetched_at,
+        "price_basis": "adjustedClose" if use_adjusted else "close",
         "from_date": from_date,
         "to_date": to_date,
-        "sessions_count": len(df_aligned) - 1,
+        "sessions_count": int(len(df_aligned) - 1),
         "range": rng_req,
         "use_adjusted": use_adjusted,
         "formula_version": "vnsc-adjusted-close-v1" if use_adjusted else "raw-close",
