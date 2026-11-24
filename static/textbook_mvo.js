@@ -62,12 +62,27 @@ function getLocaleCode() {
 
 function fmtVnd(val) {
   if (val === undefined || val === null || Number.isNaN(Number(val))) return '--';
-  return new Intl.NumberFormat(getLocaleCode(), { maximumFractionDigits: 0 }).format(Math.round(Number(val)));
+  const num = Math.round(Number(val));
+  return new Intl.NumberFormat(getLocaleCode(), { maximumFractionDigits: 0 }).format(Object.is(num, -0) ? 0 : num);
+}
+
+function fmtNegZeroPct(val, digits) {
+  if (val === undefined || val === null || Number.isNaN(Number(val))) return '--%';
+  const d = digits === undefined ? 2 : digits;
+  const num = Number(val);
+  if (Math.abs(num) < 1e-8) return (0).toFixed(d) + '%';
+  return '-' + (Math.abs(num) * 100).toFixed(d) + '%';
+}
+
+function fmtNegZeroVnd(val) {
+  if (val === undefined || val === null || Number.isNaN(Number(val))) return '--';
+  const num = Math.round(Math.abs(Number(val)));
+  if (num === 0) return '0';
+  return '-' + new Intl.NumberFormat(getLocaleCode(), { maximumFractionDigits: 0 }).format(num);
 }
 
 function fmtNum(v, digits) {
   const d = digits === undefined ? 2 : digits;
-  if (v === undefined || v !== undefined && v === null) return '--';
   if (v === undefined || v === null || Number.isNaN(Number(v))) return '--';
   return Number(v).toFixed(d);
 }
@@ -78,21 +93,58 @@ function fmtPct(v, digits) {
   return (Number(v) * 100).toFixed(d) + '%';
 }
 
+function updateFormattedNavLabel() {
+  const inp = document.getElementById('inp-nav');
+  const lbl = document.getElementById('lbl-nav-formatted');
+  if (inp && lbl) {
+    const val = parseFloat(inp.value);
+    lbl.textContent = Number.isFinite(val) && val > 0 ? `${fmtVnd(val)} ₫` : '--';
+  }
+}
+
+function setQuickNav(val) {
+  const inp = document.getElementById('inp-nav');
+  if (inp) {
+    inp.value = String(val);
+    updateFormattedNavLabel();
+    markDirty();
+  }
+}
+
 function tr(key, params) {
   if (typeof window.t === 'function') return window.t(key, params, appState.uiLang);
   return key;
 }
 
+let _lastCompactViewport = window.innerWidth < 640;
+let _resizeTimer = null;
+
 document.addEventListener('DOMContentLoaded', async function () {
   initTheme();
   applyLanguageUI(appState.uiLang, false);
   bindUIEvents();
+  updateFormattedNavLabel();
   await loadPresets();
   renderManualTable();
   renderUploadPriceStatus();
   updateAssetCountBadge();
   updateExportLockState();
   await runMVOOptimization();
+
+  window.addEventListener('resize', function () {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(function () {
+      const nowCompact = window.innerWidth < 640;
+      if (nowCompact !== _lastCompactViewport) {
+        _lastCompactViewport = nowCompact;
+        if (lastAnalysisData) {
+          renderPlotlyFrontier(lastAnalysisData);
+          renderPlotlyWeights(lastAnalysisData);
+          renderBenchmarkTab(lastAnalysisData);
+        }
+      }
+    }, 180);
+  });
 });
 
 // --- Theme Management ---
@@ -138,6 +190,8 @@ function updateThemeIcons() {
     sun.classList.toggle('hidden', !dark);
     moon.classList.toggle('hidden', dark);
   }
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.setAttribute('content', dark ? '#0c1118' : '#fafaf9');
 }
 
 // --- Language Switcher (VI / EN Live Switch Without Re-Optimizing) ---
@@ -337,8 +391,14 @@ function bindUIEvents() {
   ['inp-rf', 'inp-nav', 'inp-buy-fee', 'sel-hayinsights-range', 'chk-hayinsights-adj'].forEach(function (id) {
     const el = document.getElementById(id);
     if (el) {
-      el.addEventListener('input', markDirty);
-      el.addEventListener('change', markDirty);
+      el.addEventListener('input', function () {
+        if (id === 'inp-nav') updateFormattedNavLabel();
+        markDirty();
+      });
+      el.addEventListener('change', function () {
+        if (id === 'inp-nav') updateFormattedNavLabel();
+        markDirty();
+      });
     }
   });
 
@@ -555,12 +615,12 @@ function renderSelectedTickerPills() {
       : '';
 
     const pill = document.createElement('div');
-    pill.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded swiss-card text-xs';
+    pill.className = 'inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded swiss-card text-xs';
     pill.title = meta.name ? `${sym} — ${meta.name} (${meta.exchange || 'HOSE'})` : sym;
     const htmlStr = `
       <span class="font-semibold font-mono text-[11px]" style="color: var(--text-primary);">${sym}</span>
       ${priceHtml}
-      <button type="button" class="text-[11px] leading-none hover:opacity-75 px-1" style="color: var(--text-muted);" aria-label="Remove ${sym}">&times;</button>
+      <button type="button" class="chip-remove-btn text-xs leading-none hover:opacity-75 rounded" style="color: var(--text-muted);" aria-label="Remove ${sym}">&times;</button>
     `;
     pill.innerHTML = htmlStr;
     pill.querySelector('button').onclick = function (e) {
@@ -1085,15 +1145,7 @@ function updateBenchmarkPillsUI() {
   horizons.forEach(function (hz) {
     const pill = document.getElementById(`bm-pill-hz-${hz}`);
     if (pill) {
-      if (hz === appState.benchmarkHorizon) {
-        pill.classList.add('font-semibold');
-        pill.style.backgroundColor = 'var(--accent)';
-        pill.style.color = '#ffffff';
-      } else {
-        pill.classList.remove('font-semibold');
-        pill.style.backgroundColor = 'transparent';
-        pill.style.color = 'var(--text-secondary)';
-      }
+      pill.classList.toggle('active', hz === appState.benchmarkHorizon);
     }
   });
 
@@ -1394,11 +1446,52 @@ function renderAllCommittedViews(data) {
   renderKPISummary(data);
   renderPlotlyFrontier(data);
   renderPlotlyWeights(data);
+  renderStrategySummary(data);
   renderWeightsAndLot100Table(data);
   renderBenchmarkTab(data);
   renderStressTestingTab(data);
   renderMatricesTables(data);
   renderAlgebraStepByStep(data);
+}
+
+function renderStrategySummary(data) {
+  const pillEl = document.getElementById('summary-regime-pill');
+  const gridEl = document.getElementById('summary-grid');
+  if (!gridEl) return;
+
+  const comp = data.complete_portfolio || {};
+  const exec = data.execution || {};
+  const isExec = exec.status === 'ready';
+  const eqPct = isExec ? (1 - (exec.actual_cash_weight_post_fee || 0)) : (comp.y_risky_weight !== undefined ? comp.y_risky_weight : 0);
+  const cashPct = isExec ? (exec.actual_cash_weight_post_fee || 0) : (comp.w_rf_weight !== undefined ? comp.w_rf_weight : 0);
+  const wMin = data.w_min !== undefined ? Math.round(data.w_min * 100) : 0;
+  const wMax = data.w_max !== undefined ? Math.round(data.w_max * 100) : 100;
+  const solverTxt = data.allow_short ? 'Merton Σ⁻¹' : 'Long-Only QP';
+  const boundsTxt = data.allow_short ? 'Unconstrained' : `${wMin}% – ${wMax}%`;
+  const feeRate = exec.buy_fee_rate !== undefined ? exec.buy_fee_rate : (data.buy_fee_rate || 0.0015);
+
+  if (pillEl) {
+    pillEl.textContent = data.allow_short ? tr('mode.short') : tr('mode.bounded', { min: wMin, max: wMax });
+  }
+
+  gridEl.innerHTML = `
+    <div class="swiss-subtle p-2.5">
+      <div class="text-[10px]" style="color: var(--text-muted);">${tr('summary.solver')}</div>
+      <div class="font-semibold mt-0.5" style="color: var(--text-primary);">${solverTxt}</div>
+    </div>
+    <div class="swiss-subtle p-2.5">
+      <div class="text-[10px]" style="color: var(--text-muted);">${tr('summary.equity_share')}</div>
+      <div class="font-semibold mt-0.5" style="color: var(--accent);">${fmtPct(eqPct)}</div>
+    </div>
+    <div class="swiss-subtle p-2.5">
+      <div class="text-[10px]" style="color: var(--text-muted);">${tr('summary.cash_share')}</div>
+      <div class="font-semibold mt-0.5" style="color: var(--success);">${fmtPct(cashPct)}</div>
+    </div>
+    <div class="swiss-subtle p-2.5">
+      <div class="text-[10px]" style="color: var(--text-muted);">${tr('summary.bounds')} · ${tr('summary.fee_rate')}</div>
+      <div class="font-semibold mt-0.5" style="color: var(--text-primary);">${boundsTxt} · ${fmtPct(feeRate, 2)}</div>
+    </div>
+  `;
 }
 
 function renderProvenanceBox(data) {
@@ -1500,33 +1593,39 @@ function renderKPISummary(data) {
   document.getElementById('kpi-comp-u').textContent = fmtNum(uScore, 4);
 }
 
-// --- Plotly Theme Tokens ---
+// --- Plotly Theme Tokens (Warm Stone + Ocean/Mint Teal Minimalist, Zero Violet) ---
 function getChartThemeTokens() {
   const dark = isDarkMode();
   return {
-    fontColor: dark ? '#cbd5e1' : '#334155',
-    gridColor: dark ? '#1e293b' : '#e2e8f0',
-    zeroLineColor: dark ? '#334155' : '#cbd5e1',
-    navyAccent: dark ? '#3b82f6' : '#2563eb',
-    emeraldColor: dark ? '#10b981' : '#059669',
-    amberColor: dark ? '#f59e0b' : '#d97706',
-    purpleColor: dark ? '#a855f7' : '#7c3aed',
-    roseColor: dark ? '#f43f5e' : '#e11d48',
-    slateColor: dark ? '#94a3b8' : '#64748b',
-    cardBg: dark ? '#0f172a' : '#ffffff'
+    fontColor: dark ? '#cbd5e1' : '#3f3f46',
+    gridColor: dark ? '#1f2937' : '#e7e5e4',
+    zeroLineColor: dark ? '#334155' : '#d6d3d1',
+    navyAccent: dark ? '#2dd4bf' : '#0f766e',
+    skyBlue: dark ? '#60a5fa' : '#2563eb',
+    emeraldColor: dark ? '#34d399' : '#059669',
+    amberColor: dark ? '#fbbf24' : '#d97706',
+    cyanColor: dark ? '#38bdf8' : '#0284c7',
+    roseColor: dark ? '#fb7185' : '#e11d48',
+    slateColor: dark ? '#94a3b8' : '#71717a',
+    cardBg: dark ? '#131b24' : '#ffffff'
   };
+}
+
+function renderMobileLegend(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (window.innerWidth >= 640 || !items || items.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = items.map(function (it) {
+    return `<span class="legend-chip"><span class="legend-swatch" style="background-color: ${it.color};"></span><span>${it.label}</span></span>`;
+  }).join('');
 }
 
 function getResponsiveLegendConfig(isCompact) {
   if (isCompact) {
-    return {
-      orientation: 'h',
-      yanchor: 'top',
-      y: -0.24,
-      xanchor: 'left',
-      x: 0,
-      font: { size: 9.5 }
-    };
+    return { orientation: 'h' };
   }
   return {
     orientation: 'h',
@@ -1534,7 +1633,7 @@ function getResponsiveLegendConfig(isCompact) {
     y: 1.02,
     xanchor: 'left',
     x: 0,
-    font: { size: 10 }
+    font: { size: 10.5 }
   };
 }
 
@@ -1559,8 +1658,8 @@ function renderPlotlyFrontier(data) {
     marker: {
       size: data.is_singleton ? 10 : 4,
       color: mc.map(function (d) { return d.sharpe !== undefined ? d.sharpe : 0; }),
-      colorscale: isDarkMode() ? 'Blues' : 'YlGnBu',
-      opacity: data.is_singleton ? 0.9 : (isDarkMode() ? 0.35 : 0.45),
+      colorscale: isDarkMode() ? 'Tealgrn' : 'YlGnBu',
+      opacity: data.is_singleton ? 0.9 : (isDarkMode() ? 0.58 : 0.48),
       showscale: false
     },
     hoverinfo: 'skip'
@@ -1592,7 +1691,7 @@ function renderPlotlyFrontier(data) {
     mode: 'lines',
     type: 'scatter',
     name: tr('chart.trace_indiff', { gamma: fmtNum(gamma, 1) }),
-    line: { color: tkn.purpleColor, width: 1.5, dash: 'dot' },
+    line: { color: tkn.cyanColor, width: 1.8, dash: 'dot' },
     hovertemplate: 'σ: %{x:.2f}%<br>E(R): %{y:.2f}%<extra>U*</extra>'
   };
 
@@ -1625,7 +1724,7 @@ function renderPlotlyFrontier(data) {
     mode: 'markers',
     type: 'scatter',
     name: tr('chart.trace_tan'),
-    marker: { size: 12, symbol: 'circle', color: tkn.emeraldColor, line: { width: 2, color: tkn.cardBg } },
+    marker: { size: 12, symbol: 'circle', color: tkn.skyBlue, line: { width: 2, color: tkn.cardBg } },
     hovertemplate: '<b>Tangency</b><br>σ: %{x:.2f}%<br>E(R): %{y:.2f}%<br>Sharpe: ' + fmtNum(tan.sharpe_ratio, 3) + '<extra></extra>'
   };
 
@@ -1635,11 +1734,19 @@ function renderPlotlyFrontier(data) {
     mode: 'markers',
     type: 'scatter',
     name: tr('chart.trace_comp'),
-    marker: { size: 11, symbol: 'square', color: tkn.purpleColor, line: { width: 1.5, color: tkn.cardBg } },
+    marker: { size: 11, symbol: 'square', color: tkn.emeraldColor, line: { width: 1.5, color: tkn.cardBg } },
     hovertemplate: '<b>Complete (C)</b><br>σ: %{x:.2f}%<br>E(R): %{y:.2f}%<extra></extra>'
   };
 
   const traces = [traceMC, traceFrontier, traceCAL, traceIndiff, traceAssets, traceGMV, traceTan, traceComp];
+
+  const mobileLegendItems = [
+    { color: tkn.navyAccent, label: tr('chart.trace_frontier') },
+    { color: tkn.amberColor, label: tr('chart.trace_gmv') },
+    { color: tkn.skyBlue, label: tr('chart.trace_tan') },
+    { color: tkn.emeraldColor, label: tr('chart.trace_comp') },
+    { color: tkn.cyanColor, label: tr('chart.trace_indiff', { gamma: fmtNum(gamma, 1) }) }
+  ];
 
   if (bm && bm.status === 'available' && bm.benchmark_volatility != null && bm.benchmark_return != null) {
     traces.push({
@@ -1654,13 +1761,14 @@ function renderPlotlyFrontier(data) {
       marker: { size: 11, symbol: 'star', color: tkn.roseColor, line: { width: 1.5, color: tkn.cardBg } },
       hovertemplate: `<b>${bm.benchmark_symbol}</b><br>σ: %{x:.2f}%<br>E(R): %{y:.2f}%<extra></extra>`
     });
+    mobileLegendItems.push({ color: tkn.roseColor, label: bm.benchmark_symbol });
   }
 
   const layout = {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    margin: compact ? { l: 44, r: 12, t: 16, b: 96 } : { l: 50, r: 20, t: 32, b: 44 },
-    font: { family: 'Inter, sans-serif', color: tkn.fontColor, size: 11 },
+    margin: compact ? { l: 48, r: 10, t: 10, b: 42 } : { l: 52, r: 20, t: 36, b: 44 },
+    font: { family: 'Inter, sans-serif', color: tkn.fontColor, size: compact ? 10 : 11 },
     xaxis: {
       title: tr('chart.x_vol'),
       gridcolor: tkn.gridColor,
@@ -1673,11 +1781,13 @@ function renderPlotlyFrontier(data) {
       zerolinecolor: tkn.zeroLineColor,
       ticksuffix: '%'
     },
+    showlegend: !compact,
     legend: getResponsiveLegendConfig(compact),
     hovermode: 'closest'
   };
 
   Plotly.react('chart-frontier', traces, layout, { responsive: true, displayModeBar: false });
+  renderMobileLegend('frontier-mobile-legend', mobileLegendItems);
 }
 
 function renderPlotlyWeights(data) {
@@ -1709,7 +1819,7 @@ function renderPlotlyWeights(data) {
       y: toPct(data.tangency ? data.tangency.weights : [], 0),
       name: tr('chart.trace_tan'),
       type: 'bar',
-      marker: { color: tkn.navyAccent }
+      marker: { color: tkn.skyBlue }
     },
     {
       x: categories,
@@ -1720,6 +1830,12 @@ function renderPlotlyWeights(data) {
     }
   ];
 
+  const mobileLegendItems = [
+    { color: tkn.amberColor, label: tr('chart.trace_gmv') },
+    { color: tkn.skyBlue, label: tr('chart.trace_tan') },
+    { color: tkn.emeraldColor, label: tr('chart.trace_comp') }
+  ];
+
   const exec = data.execution || {};
   if (exec.status === 'ready' && Array.isArray(exec.actual_weights_post_fee)) {
     traces.push({
@@ -1728,10 +1844,11 @@ function renderPlotlyWeights(data) {
       name: tr('chart.trace_exec'),
       type: 'bar',
       marker: {
-        color: tkn.purpleColor,
+        color: tkn.cyanColor,
         pattern: { shape: '/' }
       }
     });
+    mobileLegendItems.push({ color: tkn.cyanColor, label: tr('chart.trace_exec') });
   }
 
   const compact = window.innerWidth < 640;
@@ -1739,8 +1856,8 @@ function renderPlotlyWeights(data) {
     barmode: 'group',
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    margin: compact ? { l: 42, r: 10, t: 16, b: 84 } : { l: 48, r: 16, t: 28, b: 36 },
-    font: { family: 'Inter, sans-serif', color: tkn.fontColor, size: 11 },
+    margin: compact ? { l: 42, r: 10, t: 10, b: 36 } : { l: 48, r: 16, t: 28, b: 36 },
+    font: { family: 'Inter, sans-serif', color: tkn.fontColor, size: compact ? 10 : 11 },
     xaxis: { gridcolor: 'rgba(0,0,0,0)', font: { family: 'JetBrains Mono' } },
     yaxis: {
       title: tr('chart.y_weight'),
@@ -1748,10 +1865,12 @@ function renderPlotlyWeights(data) {
       zerolinecolor: tkn.zeroLineColor,
       ticksuffix: '%'
     },
+    showlegend: !compact,
     legend: getResponsiveLegendConfig(compact)
   };
 
   Plotly.react('chart-weights', traces, layout, { responsive: true, displayModeBar: false });
+  renderMobileLegend('weights-mobile-legend', mobileLegendItems);
 }
 
 // --- Tab 01: Lot-100 Execution (Single Source of Truth from data.execution) ---
@@ -1759,9 +1878,9 @@ function renderWeightsAndLot100Table(data) {
   const tbl = document.getElementById('tbl-weights-lot100');
   const mobileBox = document.getElementById('mobile-execution-cards');
   const reconBox = document.getElementById('exec-reconciliation-bar');
+  const allocStrip = document.getElementById('exec-allocation-strip');
   const disabledBanner = document.getElementById('exec-disabled-banner');
   const driftBanner = document.getElementById('exec-drift-banner');
-  const execLbl = document.getElementById('lbl-execution-summary');
   if (!tbl) return;
 
   const syms = data.symbols || [];
@@ -1803,14 +1922,38 @@ function renderWeightsAndLot100Table(data) {
     }
   }
 
+  if (allocStrip) {
+    if (isReady && exec.nav_vnd > 0) {
+      const eqShare = Math.max(0, Math.min(100, (exec.total_purchase_value / exec.nav_vnd) * 100));
+      const feeShare = Math.max(0, Math.min(100, (exec.total_buy_fees / exec.nav_vnd) * 100));
+      const cashShare = Math.max(0, 100 - eqShare - feeShare);
+      allocStrip.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono" style="color: var(--text-secondary);">
+          <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background-color: var(--accent);"></span>${tr('exec.alloc_equity')}: <strong>${eqShare.toFixed(1)}%</strong></span>
+          <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background-color: var(--warning);"></span>${tr('exec.alloc_fee')}: <strong>${feeShare.toFixed(2)}%</strong></span>
+          <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background-color: var(--success);"></span>${tr('exec.alloc_cash')}: <strong>${cashShare.toFixed(1)}%</strong></span>
+        </div>
+        <div class="alloc-bar-track" aria-hidden="true">
+          <div style="width: ${eqShare.toFixed(2)}%; background-color: var(--accent);"></div>
+          <div style="width: ${feeShare.toFixed(2)}%; background-color: var(--warning);"></div>
+          <div style="width: ${cashShare.toFixed(2)}%; background-color: var(--success);"></div>
+        </div>
+      `;
+      allocStrip.classList.remove('hidden');
+    } else {
+      allocStrip.innerHTML = '';
+      allocStrip.classList.add('hidden');
+    }
+  }
+
   if (reconBox) {
     if (isReady) {
       const reconHtml = `
-        <div class="p-2.5 swiss-subtle"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.nav_initial')}</div><div class="font-bold">${fmtVnd(exec.nav_vnd)} VND</div></div>
+        <div class="p-2.5 swiss-subtle col-span-2 sm:col-span-1"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.nav_initial')}</div><div class="font-bold">${fmtVnd(exec.nav_vnd)} VND</div></div>
         <div class="p-2.5 swiss-subtle"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.equities_val')}</div><div class="font-bold">${fmtVnd(exec.total_purchase_value)} VND</div></div>
         <div class="p-2.5 swiss-subtle"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.fees_val')} (${fmtPct(exec.buy_fee_rate, 2)})</div><div class="font-bold" style="color: var(--warning);">${fmtVnd(exec.total_buy_fees)} VND</div></div>
         <div class="p-2.5 swiss-subtle"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.cash_rem')}</div><div class="font-bold" style="color: var(--success);">${fmtVnd(exec.cash_remaining)} VND</div></div>
-        <div class="p-2.5 swiss-subtle col-span-2 sm:col-span-1"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.nav_post_fee')}</div><div class="font-bold" style="color: var(--accent);">${fmtVnd(exec.nav_post_fee)} VND</div></div>
+        <div class="p-2.5 swiss-subtle"><div class="text-[10px]" style="color: var(--text-muted);">${tr('exec.nav_post_fee')}</div><div class="font-bold" style="color: var(--accent);">${fmtVnd(exec.nav_post_fee)} VND</div></div>
       `;
       reconBox.innerHTML = reconHtml;
     } else {
@@ -1925,15 +2068,6 @@ function renderWeightsAndLot100Table(data) {
         <span class="font-bold" style="color: var(--success);">${cashRemStr} VND (${cashWPostFeeStr})</span>
       </div>`;
     mobileBox.innerHTML = mobileHtml;
-  }
-
-  if (execLbl) {
-    if (isReady) {
-      const sumText = `${tr('exec.equities_val')} ${fmtVnd(exec.total_purchase_value)} VND | ${tr('exec.fees_val')} ${fmtVnd(exec.total_buy_fees)} VND | ${tr('exec.cash_rem')} ${fmtVnd(exec.cash_remaining)} VND (${fmtPct(exec.actual_cash_weight_post_fee, 1)})`;
-      execLbl.textContent = sumText;
-    } else {
-      execLbl.textContent = '';
-    }
   }
 }
 
@@ -2129,18 +2263,23 @@ function renderBenchmarkTab(data) {
   const layout = {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    margin: compact ? { l: 42, r: 10, t: 14, b: 70 } : { l: 48, r: 16, t: 28, b: 36 },
-    font: { family: 'Inter, sans-serif', color: tkn.fontColor, size: 11 },
+    margin: compact ? { l: 42, r: 10, t: 10, b: 36 } : { l: 48, r: 16, t: 28, b: 36 },
+    font: { family: 'Inter, sans-serif', color: tkn.fontColor, size: compact ? 10 : 11 },
     xaxis: { gridcolor: tkn.gridColor },
     yaxis: {
       title: 'Indexed Wealth (Base = 100)',
       gridcolor: tkn.gridColor,
       zerolinecolor: tkn.zeroLineColor
     },
+    showlegend: !compact,
     legend: getResponsiveLegendConfig(compact),
     hovermode: 'x unified'
   };
   Plotly.react(chartEl, traces, layout, { responsive: true, displayModeBar: false });
+  renderMobileLegend('benchmark-mobile-legend', dates.length > 0 ? [
+    { color: tkn.navyAccent, label: `${tr('bm.col_port')} (Base 100)` },
+    { color: tkn.roseColor, label: `${bm.benchmark_symbol} (Base 100)` }
+  ] : []);
 }
 
 // --- Tab 03: Stress Testing & VaR / ES ---
@@ -2186,29 +2325,29 @@ function renderStressTestingTab(data) {
   }
 
   const mddHtml = vm.max_drawdown_complete_pct !== null && vm.max_drawdown_complete_pct !== undefined
-    ? `<div class="mt-1.5 text-xl font-bold font-mono" style="color: var(--text-primary);">-${fmtPct(vm.max_drawdown_complete_pct)}</div>
-       <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-muted);">100% Equity MDD: -${fmtPct(vm.max_drawdown_risky_pct)}</div>`
-    : `<div class="mt-1.5 text-sm font-semibold font-mono" style="color: var(--text-muted);">--</div>
+    ? `<div class="mt-1 text-xl font-bold kpi-value" style="color: var(--text-primary);">${fmtNegZeroPct(vm.max_drawdown_complete_pct)}</div>
+       <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-muted);">100% Equity MDD: ${fmtNegZeroPct(vm.max_drawdown_risky_pct)}</div>`
+    : `<div class="mt-1 text-sm font-semibold kpi-value" style="color: var(--text-muted);">--</div>
        <div class="text-[11px] mt-0.5" style="color: var(--text-muted);">${tr('stress.mdd_unavail')}</div>`;
 
   const cardsHtml = `
-    <div class="swiss-subtle p-3.5 rounded border" style="border-color: var(--border-color);">
-      <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">${tr('stress.var95_1d')}</div>
-      <div class="mt-1.5 text-xl font-bold font-mono" style="color: var(--danger);">-${fmtPct(vm.var_95_1d_pct)}</div>
-      <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-secondary);">-${fmtVnd(vm.var_95_1d_vnd || 0)} VND (99%: -${fmtPct(vm.var_99_1d_pct)})</div>
+    <div class="swiss-card p-3.5 flex flex-col justify-between gap-1">
+      <div class="kpi-label">${tr('stress.var95_1d')}</div>
+      <div class="mt-1 text-xl font-bold kpi-value" style="color: var(--danger);">${fmtNegZeroPct(vm.var_95_1d_pct)}</div>
+      <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-secondary);">${fmtNegZeroVnd(vm.var_95_1d_vnd || 0)} VND (99%: ${fmtNegZeroPct(vm.var_99_1d_pct)})</div>
     </div>
-    <div class="swiss-subtle p-3.5 rounded border" style="border-color: var(--border-color);">
-      <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">${tr('stress.es95_1d')}</div>
-      <div class="mt-1.5 text-xl font-bold font-mono" style="color: var(--danger);">-${fmtPct(vm.cvar_95_1d_pct)}</div>
-      <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-secondary);">-${fmtVnd(vm.cvar_95_1d_vnd || 0)} VND (99%: -${fmtPct(vm.cvar_99_1d_pct)})</div>
+    <div class="swiss-card p-3.5 flex flex-col justify-between gap-1">
+      <div class="kpi-label">${tr('stress.es95_1d')}</div>
+      <div class="mt-1 text-xl font-bold kpi-value" style="color: var(--danger);">${fmtNegZeroPct(vm.cvar_95_1d_pct)}</div>
+      <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-secondary);">${fmtNegZeroVnd(vm.cvar_95_1d_vnd || 0)} VND (99%: ${fmtNegZeroPct(vm.cvar_99_1d_pct)})</div>
     </div>
-    <div class="swiss-subtle p-3.5 rounded border" style="border-color: var(--border-color);">
-      <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">${tr('stress.var95_21d')}</div>
-      <div class="mt-1.5 text-xl font-bold font-mono" style="color: var(--warning);">-${fmtPct(vm.var_95_21d_pct)}</div>
-      <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-secondary);">-${fmtVnd(vm.var_95_21d_vnd || 0)} VND (ES: -${fmtPct(vm.cvar_95_21d_pct)})</div>
+    <div class="swiss-card p-3.5 flex flex-col justify-between gap-1">
+      <div class="kpi-label">${tr('stress.var95_21d')}</div>
+      <div class="mt-1 text-xl font-bold kpi-value" style="color: var(--warning);">${fmtNegZeroPct(vm.var_95_21d_pct)}</div>
+      <div class="text-[11px] font-mono mt-0.5" style="color: var(--text-secondary);">${fmtNegZeroVnd(vm.var_95_21d_vnd || 0)} VND (ES: ${fmtNegZeroPct(vm.cvar_95_21d_pct)})</div>
     </div>
-    <div class="swiss-subtle p-3.5 rounded border" style="border-color: var(--border-color);">
-      <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-muted);">${tr('stress.mdd')}</div>
+    <div class="swiss-card p-3.5 flex flex-col justify-between gap-1">
+      <div class="kpi-label">${tr('stress.mdd')}</div>
       ${mddHtml}
     </div>
   `;
@@ -2232,17 +2371,20 @@ function renderStressTestingTab(data) {
     <th class="text-right">Cash Saved</th>
   </tr></thead><tbody>`;
 
+  const isEn = appState.uiLang === 'en';
   scenarios.forEach(function (sc) {
+    const scName = isEn ? (sc.name_en || sc.name) : sc.name;
+    const scDesc = isEn ? (sc.description_en || sc.description) : sc.description;
     html += `<tr>
       <td class="sticky-col">
-        <div class="font-semibold" style="color: var(--text-primary);">${sc.name}</div>
-        <div class="text-[11px] font-sans" style="color: var(--text-muted);">${sc.description}</div>
+        <div class="font-semibold" style="color: var(--text-primary);">${scName}</div>
+        <div class="text-[11px] font-sans" style="color: var(--text-muted);">${scDesc}</div>
       </td>
       <td class="text-xs" style="color: var(--text-secondary);">${sc.period}</td>
       <td class="text-right font-semibold" style="color: var(--danger);">${fmtPct(sc.market_shock_pct)}</td>
       <td class="text-right" style="color: var(--text-secondary);">${fmtPct(sc.risky_only_impact_pct)}</td>
       <td class="text-right font-semibold" style="color: var(--danger);">${fmtPct(sc.complete_impact_pct)}</td>
-      <td class="text-right font-semibold" style="color: var(--danger);">-${fmtVnd(sc.estimated_loss_vnd)}</td>
+      <td class="text-right font-semibold" style="color: var(--danger);">${fmtNegZeroVnd(sc.estimated_loss_vnd)}</td>
       <td class="text-right font-semibold">${fmtVnd(sc.post_shock_nav_vnd)}</td>
       <td class="text-right font-semibold" style="color: var(--success);">+${fmtVnd(sc.cash_protection_vnd)}</td>
     </tr>`;
@@ -2633,5 +2775,6 @@ window.setBenchmarkHorizon = setBenchmarkHorizon;
 window.setBenchmarkIndex = setBenchmarkIndex;
 window.setLanguage = setLanguage;
 window.setRiskReportBasis = setRiskReportBasis;
+window.setQuickNav = setQuickNav;
 window.toggleCap20Preset = toggleCap20Preset;
 window.toggleTT98Preset = toggleTT98Preset;

@@ -602,15 +602,19 @@ def test_bloomberg_benchmark_attribution_and_fullscreen_ux():
     for inp_id in ("inp-ticker-search", "inp-rf", "inp-nav", "inp-buy-fee", "rng-risk-a", "rng-w-min", "rng-w-max"):
         assert f'for="{inp_id}"' in html_text, f"Missing <label for='{inp_id}'> in index.html"
 
-    # Required Bloomberg pills & v2.5.0 cache-busting tags
+    # Required Bloomberg pills, v2.6.0 cache-busting tags, and no violet/lavender palette
     for hz in ("6m", "1y", "3y", "5y", "ytd", "max"):
         assert f'id="bm-pill-hz-{hz}"' in html_text
     assert 'id="bm-pill-idx-vnindex"' in html_text
     assert 'id="bm-pill-idx-vn30"' in html_text
     for kpi_id in ("bm-kpi-alpha", "bm-kpi-beta", "bm-kpi-ir", "bm-kpi-te", "bm-kpi-corr"):
         assert f'id="{kpi_id}"' in html_text
-    assert "i18n.js?v=2.5.0" in html_text
-    assert "textbook_mvo.js?v=2.5.0" in html_text
+    assert "i18n.js?v=2.6.0" in html_text
+    assert "textbook_mvo.js?v=2.6.0" in html_text
+    assert "styles.css?v=2.6.0" in html_text
+    css_text = (PROJECT_ROOT / "static" / "styles.css").read_text(encoding="utf-8")
+    for banned_violet in ("#7c3aed", "#a855f7", "#8b5cf6"):
+        assert banned_violet not in js_text.lower() and banned_violet not in css_text.lower()
 
     # DOM ID & onclick handler contract
     html_ids = set(re.findall(r'id="([^"]+)"', html_text))
@@ -628,6 +632,7 @@ def test_bloomberg_benchmark_attribution_and_fullscreen_ux():
         "exportCurrentMatrixData",
         "setLanguage",
         "setRiskReportBasis",
+        "setQuickNav",
         "toggleCap20Preset",
     ):
         assert f"window.{fn} = {fn}" in js_text, f"Missing window export for {fn}"
